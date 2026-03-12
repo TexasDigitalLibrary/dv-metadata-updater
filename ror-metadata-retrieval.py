@@ -13,7 +13,6 @@ df_clean_unmatched = df_clean[(df_clean['ror'].notna() & df_clean['official_name
 
 if df_clean_unmatched.empty:
     print('The dataframe is empty, exiting script.\n')
-    # Exits the program with an exit code of 1 (indicating an error)
     sys.exit(1) 
 else:
     print(f'Retrieving ROR metadata on {len(df_clean_unmatched)} affiliations.\n')
