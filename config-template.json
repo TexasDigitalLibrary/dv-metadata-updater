@@ -1,0 +1,56 @@
+{
+    "KEYS": {
+        "dataverse_token": ""
+    },
+    "USER": {
+        "user_email": "your.email@email.domain",
+        "user_name": "Your Name"
+    },
+    "INSTITUTION":{
+        "filename": "string-for-use-in-filenames",
+        "myInstitution": "UT Austin"
+    },
+    "EXCLUDED":[
+        "Smith, John",
+        "Roberts, Samantha"
+    ],
+    "PEOPLE_CONDITIONAL":
+    [
+        "Clark, Matthew",
+        "Washington, Kelly" 
+    ],
+    "TOGGLES":{
+        "test_retrieval": false,
+        "test_remediation": true,
+        "test_email": false,
+        "draft_email": false,
+        "only_my_institution": true,
+        "split_institution_output": false,
+        "ror_plugin_enabled": false
+    },
+    "RECURATION":{
+        "orcid": true,
+        "ror": true,
+        "names": true,
+        "keywords": true,
+        "punctuation": true,
+        "works": true,
+        "licenses": true
+    },
+    "VARIABLES": {
+        "PAGE_SIZES": {
+            "dataverse_prod": 200,
+            "dataverse_test": 10
+        },
+        "PAGE_LIMITS": {
+            "dataverse_prod": 100,
+            "dataverse_test": 5
+        },
+        "PAGE_STARTS": {
+            "dataverse": 0
+        },
+        "PAGE_INCREMENTS": {
+            "dataverse": 1
+        }
+    }
+}
