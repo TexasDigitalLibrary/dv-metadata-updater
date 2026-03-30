@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import re
 import requests
+import time
 from datetime import datetime
 from pathlib import Path
 from utils import load_most_recent_file
@@ -19,7 +20,7 @@ with open('config.json', 'r') as file:
 ## Test environment (small sample size and other non-prod uses)
 test = config['TOGGLES']['test_environment']
 ## Whether to retrieve from Native API
-retrieve = config['TOGGLES']['test_retrieval']
+retrieve = config['TOGGLES']['retrieve_json']
 # Number of datasets to fully process remediation
 test_remediate = config['TOGGLES']['test_remediation']
 # Whether ROR external vocab plug-in is working
@@ -38,20 +39,21 @@ script_dir = os.getcwd()
 inputs_dir = os.path.join(script_dir, 'outputs')
 
 # Load master file of remediations
-pattern = f'_final-combined-remediated.csv'
+pattern = f'_final-combined-remediated_ANNOTATED.csv'
 df = load_most_recent_file(inputs_dir, pattern)
+df = df.sort_values(by=['parent_dataverse', 'dataverse'])
 ## Remove ones flagged only for review (fixed = False)
 fixed_df = df[df['fixed']]
 df_dois = fixed_df.drop_duplicates(subset=['doi'])
 ## Various ways to restrict the df so you can test on prod
 if test_remediate:
-    # ### Just take the first X entries
-    # df_dois = df_dois.head(15)
-    # df=df.head(100)
-    ### Target specific DOIs
-    target_dois = ['10.18738/T8/NEYRHY', '10.18738/T8/NMQA1N', '10.18738/T8/UKDP9P']
-    df_dois = df_dois[df_dois['doi'].isin(target_dois)]
-    df = df[df['doi'].isin(target_dois)]
+    ### Just take the first X entries
+    df_dois = df_dois.head(10)
+    df = df[df['doi'].isin(df_dois['doi'])]
+    # ### Target specific DOIs
+    # target_dois = ['10.18738/T8/NEYRHY', '10.18738/T8/NMQA1N', '10.18738/T8/UKDP9P']
+    # df_dois = df_dois[df_dois['doi'].isin(target_dois)]
+    # df = df[df['doi'].isin(target_dois)]
 
 # Timestamp to calculate run time
 start_time = datetime.now() 
@@ -121,6 +123,9 @@ else:
 # ============================================
 if retrieve:
     print('Beginning to retrieve JSON representations of datasets.\n')
+    # Create empty lists to record timeouts
+    first_timeouts = []
+    final_timeouts = []
 
     headers_tdr = {
         'X-Dataverse-key': config['KEYS']['dataverse_token']
@@ -141,8 +146,31 @@ if retrieve:
                     json.dump(item, f, indent=4)
             else:
                 print(f'Error fetching {doi}: {response.status_code}, {response.text}')
-        except requests.exceptions.RequestException as e:
-            print(f'Timeout error on DOI {doi}: {e}')
+        except Exception as e:
+            first_timeouts.append({"doi": doi, "reason": "Persistent Timeout/Error"})
+            list_length = len(first_timeouts)
+            print(f'The current number of timeouts is: {list_length}.\n')
+        
+if retrieve and first_timeouts:
+    print(f"\n--- Retrying {len(first_timeouts)} repeat timeouts with 10s limit ---\n")
+    time.sleep(2) 
+    for doi in df_dois['doi']:
+        try:
+            response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=5)
+            if response.status_code == 200:
+                print(f'Retrieving JSON representation for {doi}...\n')
+                item = response.json()
+                
+                safe_doi = re.sub(r'[<>:\"/\\\\|?*]', '_', doi)
+                filename = f'{json_dir}/{safe_doi}-dataset-metadata.json'
+                with open(filename, 'w') as f:
+                    json.dump(item, f, indent=4)
+            else:
+                print(f'Error fetching {doi}: {response.status_code}, {response.text}')
+        except Exception as e:
+            final_timeouts.append({"doi": doi, "reason": "Persistent Timeout/Error"})
+            list_length = len(final_timeouts)
+            print(f'The final number of timeouts is: {list_length}.\n')
 
     print('Retrieval complete.')
 
@@ -620,32 +648,50 @@ for filename in dir_path.iterdir():
         payload = {k: v for k, v in dataset_version.items() if k != 'files'}
 
         # Create draft
-        update_url = f"{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}"
-        response = requests.put(update_url, headers=headers_tdr, json=payload)
+        ## Catch any failures
+        failed_uploads = []
+        try:
+            update_url = f"{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}"
+            response = requests.put(update_url, headers=headers_tdr, json=payload)
 
-        if response.status_code == 200:
-            print("✓ Dataset metadata updated versioned.\n")
-        else:
-            print(f"✗ Failed to update metadata. Status code: {response.status_code}.\n")
-            print(response.text)
-            exit(1)
+            if response.status_code == 200:
+                print("✓ Dataset metadata updated versioned.\n")
+            else:
+                print(f"✗ Failed to update metadata. Status code: {response.status_code}.\n")
+                print(response.text)
+                failed_uploads.append(doi) 
 
-        doi_without_prefix = doi.replace('doi:', '')
-        needs_review = df_dois[df_dois['doi'] == doi_without_prefix]['to_review'].iloc[0]
-        is_draft = df_dois[df_dois['doi'] == doi_without_prefix]['current_status_x'].iloc[0] == 'DRAFT'
-        
-        if needs_review or is_draft:
-            print(f"⚠ Dataset needs further review or was in draft status.\n")
-        # else:
-        #     # Publish the dataset
-        #     publish_url = f"{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor"
-        #     response = requests.post(publish_url, headers=headers_tdr)
+            doi_without_prefix = doi.replace('doi:', '')
+            filtered_row = df_dois[df_dois['doi'] == doi_without_prefix]
+            if len(filtered_row) == 0:
+                print(f"Warning: DOI '{doi_without_prefix}' not found in DataFrame")
+                # Handle missing DOI - options:
+                needs_review = None
+                is_draft = None
+            else:
+                needs_review = filtered_row['to_review'].iloc[0]
+                is_draft = filtered_row['current_status'].iloc[0] == 'DRAFT'
+            
+            if needs_review or is_draft:
+                print(f"⚠ Dataset needs further review or was in draft status.\n")
+            # else:
+            #     # Publish the dataset
+            #     publish_url = f"{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor"
+            #     response = requests.post(publish_url, headers=headers_tdr)
 
-        #     if response.status_code == 200:
-        #         print("✓ Dataset published successfully.\n")
-        #     else:
-        #         print(f"✗ Failed to publish dataset. Status code: {response.status_code}")
-        #         print(response.text)
+            #     if response.status_code == 200:
+            #         print("✓ Dataset published successfully.\n")
+            #     else:
+            #         print(f"✗ Failed to publish dataset. Status code: {response.status_code}")
+            #         print(response.text)
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed for {doi}: {e}")
+            failed_uploads.append(doi)    
+
+# Print failed uploads
+print(failed_uploads)
+list_length = len(failed_uploads)
+print(f'The final number of failed uploads is: {list_length}.\n')
 
 # Calculate total runtime
 end_time = datetime.now()

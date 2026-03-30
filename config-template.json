@@ -4,7 +4,9 @@
     },
     "USER": {
         "user_email": "your.email@email.domain",
-        "user_name": "Your Name"
+        "user_name": "Your Name",
+        "user_title": "",
+        "user_credentials": ""
     },
     "INSTITUTION":{
         "filename": "string-for-use-in-filenames",
@@ -20,10 +22,11 @@
         "Washington, Kelly" 
     ],
     "TOGGLES":{
-        "test_retrieval": false,
-        "test_remediation": true,
-        "test_email": false,
-        "draft_email": false,
+        "test_environment": false,
+        "test_remediation": false,
+        "test_email": true,
+        "retrieve_json": false,
+        "draft_email": true,
         "only_my_institution": true,
         "split_institution_output": false,
         "ror_plugin_enabled": false

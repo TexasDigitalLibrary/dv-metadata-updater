@@ -68,9 +68,9 @@ print(f'Total number of flagged datasets after omission: {len(datasets_flagged_r
 # ============================================
 datasets_flagged_retained['keywords_remediated'] = pd.NA
 mask_keywords = datasets_flagged_retained['flag_keyword'] == True
-datasets_flagged_retained.loc[mask_keywords, 'keywords_remediated'] = (
-    datasets_flagged_retained.loc[mask_keywords, 'keywords'].apply(lambda x: [item.strip() for item in re.split(r'[;,\s]+', ast.literal_eval(x)[0]) if item.strip()])
-)
+datasets_flagged_retained.loc[mask_keywords, 'keywords_remediated'] = datasets_flagged_retained.loc[mask_keywords, 'keywords'].apply(
+        lambda x: [item.strip() for item in re.split(r'[;,]', ast.literal_eval(x)[0]) if item.strip()]
+    )
 
 # ============================================
 # Title formatting
@@ -112,6 +112,10 @@ authors_retained = authors[
     )
 ]
 print(f'There are {len(authors_retained)} of {len(authors)} authors being analyzed.\n')
+
+# ============================================
+# ROR standardization
+# ============================================
 
 authors_retained['flag_ror'] = authors_retained['flag_ror'].astype(bool)
 missing_count = authors_retained['flag_ror'].sum()
@@ -156,7 +160,7 @@ fixed_names.loc[mask_semicolon] = names.str.replace(';', ',')
 corrections.loc[mask_semicolon] = 'semi-colon replacement'
 
 ## ALL CAPS
-mask_case = mask_author_broad & names.str.isupper()
+mask_case = (mask_author_broad & names.str.isupper() & (names.str.split().str.len() > 1))
 fixed_names.loc[mask_case] = names.loc[mask_case].str.title()
 corrections.loc[mask_case] = 'changing case'
 

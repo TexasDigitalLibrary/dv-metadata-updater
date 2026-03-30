@@ -747,7 +747,7 @@ df_select_concatenated = pd.merge(df_datasets_dataverses, df_data_tdr_native_sel
 if recurate_punctuation:
     # If title ends in period
     ## Exempts flag if there are certain words involving periods at the end
-    exempt_words = ['U.S.', 'U.S.A.', 'et al.']
+    exempt_words = ['U.S.', 'U.S.A.', 'et al.', 'et al. ']
     df_select_concatenated['flag_title_period'] = (df_select_concatenated['dataset_title'].str.endswith('.') & ~df_select_concatenated['dataset_title'].str.endswith('|'.join(exempt_words)))
     
     # If extra space in front or behind title

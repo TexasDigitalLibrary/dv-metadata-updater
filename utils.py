@@ -80,6 +80,23 @@ def load_most_recent_file(outputs_dir, pattern):
         print(f"The most recent file '{latest_file}' has been loaded successfully.\n")
         return df
     
+# Standard function to return the 'nth' file with specified pattern in name in specified directory (starts at 1)
+def load_nth_most_recent_file(outputs_dir, pattern, n=1):
+    files = os.listdir(outputs_dir)
+    files.sort(reverse=True)
+
+    matching_files = [file for file in files if pattern in file]
+
+    if len(matching_files) < n:
+        print(f"Less than {n} files with '{pattern}' found in '{outputs_dir}'.\n")
+        return None
+    else:
+        nth_file = matching_files[n - 1]
+        file_path = os.path.join(outputs_dir, nth_file)
+        df = pd.read_csv(file_path)
+        print(f"The {n}{'st' if n==1 else 'nd' if n==2 else 'rd' if n==3 else 'th'} most recent file '{nth_file}' has been loaded successfully.\n")
+        return df
+    
 # Validate formatting of ORCID and ROR in metadata
 def is_valid_orcid(orcid):
     # ORCID must be a URL not just the string and not have a space after the shoulder

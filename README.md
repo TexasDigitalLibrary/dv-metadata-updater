@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.0.0
-* *Released*: 2026/03/12
+* *Version*: 1.0.1
+* *Released*: 2026/03/30
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/03/12
+* *README last updated*: 2026/03/30
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -14,6 +14,7 @@
 3. [Outputs](#outputs)
 4. [Requirements](#requirements)
 5. [Development](#development)
+6. [Versions] (#versions)
 
 ## Purpose
 This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the Texas Data Repository, a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review.
@@ -86,3 +87,6 @@ This workflow mostly makes use of modules in the Python standard library: *ast*,
 
 ## Development
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
+
+## Versions
+**Version 1.0.1** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. 

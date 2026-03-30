@@ -14,13 +14,14 @@ with open('config.json', 'r') as file:
     config = json.load(file)
 
 # Import PDF with FAQs
-faq_relative_path = "docs/faq.pdf"
+faq_relative_path = "docs/tdr-recuration-faq.pdf"
 # This resolves to the absolute path relative to the current working directory
 faq_absolute_path = Path(faq_relative_path).resolve()
 
 # Test environment (incomplete run, faster to complete)
 ## For this script, the test env will only generate/test emails for 10 contacts
 test = config['TOGGLES']['test_email']
+## Whether to create draft emails in your inbox or just to run the pre-processing parts
 draft_email = config['TOGGLES']['draft_email']
 
 # Timestamp to calculate run time
@@ -31,6 +32,8 @@ today = datetime.now().strftime('%Y%m%d')
 # Import information about user for auto-populating drafts
 user_name = config['USER']['user_name']
 user_email = config['USER']['user_email']
+user_title = config['USER']['user_title']
+user_credentials = config['USER']['user_credentials']
 
 # Get directories
 script_dir = os.getcwd()
@@ -41,7 +44,7 @@ outputs_dir = os.path.join(script_dir, 'outputs')
 # ============================================
 
 # Load most recent version of remediated authors and datasets df
-pattern = f'_final-combined-remediated.csv'
+pattern = f'_final-combined-remediated_ANNOTATED.csv'
 datasets = load_most_recent_file(outputs_dir, pattern)
 
 # Explode on contact email for multi-contact datasets
@@ -104,25 +107,25 @@ if draft_email:
             htmlmessage = f"<span style='font-family:calibri; font-size:11pt'>Dear {name},<br><br>You are receiving this email in relation to a published dataset in the Texas Data Repository (TDR), titled <b>\"{dataset_title}\"</b> (DOI: <a href={hyperlinked_doi}>{dataset_doi}</a>), for which you are listed as the contact person.</span><br><br>"
         else:
             htmlmessage = f"<span style='font-family:calibri; font-size:11pt'>Dear {name},<br><br>You are receiving this email in relation to multiple published datasets in the Texas Data Repository (TDR), for which you are listed as the contact person.</span><br><br>"
-        htmlmessage += (f"<span style='font-family:calibri; font-size:11pt'>UT Libraries staff are performing a repository-wide re-curation of published datasets in order to standardize and to enhance metadata during the week of March 23-27, 2026. These enhancements include:<br><br>"
+        htmlmessage += (f"<span style='font-family:calibri; font-size:11pt'>UT Libraries staff are performing a repository-wide re-curation of published datasets in order to standardize and to enhance metadata. This process will be carried out this week, March 23-27, 2026. These enhancements may include:<br><br>"
         "<ul>"
         "<li>Addition of <a href='https://info.orcid.org/researchers/'>ORCID</a> identifiers</li>"
-        "<li>Addition of <a href='https://ror.org/about/'>ROR,</a> identifiers</li>"
+        "<li>Addition of <a href='https://ror.org/about/'>ROR</a> identifiers</li>"
         "<li>Standardization of how author names are formatted</li>"
         "<li>Standardization of how keywords are formatted</li>"
-        "<li>Addition of related scholarly outputs (e.g., articles, preprints)</li>"
-        "<li>Clean-up of punctuation in titles</li>"
+        "<li>Addition of linked/related scholarly outputs (e.g., articles, preprints)</li>"
+        "<li>Clean-up of punctuation in titles (e.g., leading/trailing whitespace)</li>"
         "</ul>"
-        "</span>")
-        htmlmessage += f"<span style='font-family:calibri; font-size:11pt'> Additional information/FAQs are attached in the PDF and available online <a href='https://guides.lib.utexas.edu/research-data-services'>here</a>.</span><br><br>"
+        "</span><br>")
+        htmlmessage += f"<span style='font-family:calibri; font-size:11pt'> A 1-page PDF with potential FAQs is attached; additional FAQs are available online <a href='https://guides.lib.utexas.edu/research-data-services/tdr-metadata-recuration'>here</a>.</span><br><br>"
         if dataset_count > 1:
-            htmlmessage += f"<span style='font-family:calibri; font-size:11pt'>The following datasets are slated for re-curated:<br><ul>{dataset_list}</ul></span><br>"
+            htmlmessage += f"<span style='font-family:calibri; font-size:11pt'>The following datasets are slated for re-curated:<br><ul>{dataset_list}</ul></span>"
         htmlmessage += f"<span style='font-family:calibri; font-size:11pt'>These enhancements are intended to improve the standardization and quality of dataset metadata in TDR, primarily with respect to the use of persistent identifiers (PIDs), which is an area that has been highlighted as <a href='https://repository.si.edu/items/0fe77b19-f2d9-400c-8886-757d4487d907'>desirable or required by federal research agencies</a>.</span><br><br>"
         if dataset_count == 1:
             htmlmessage += f"<span style='font-family:calibri; font-size:11pt'> No action is required from your end, but please be aware that you will receive an automated email from TDR that your dataset has been published when this process is complete because it will result in the publication of a new minor version of the dataset.</span><br><br>"
         else:
-            htmlmessage += f"<span style='font-family:calibri; font-size:11pt'> No action is required from your end, but please be aware that you will receive an automated email from TDR, for each dataset, that the dataset has been published when this process is complete because it will result in the publication of a new minor version of the dataset.</span><br><br>"
-        htmlmessage += f"<span style='font-family:calibri, font-size:11pt'>This email has been automatically generated. If you have any questions, please reach out to Research Data Coordinator, {user_name}, at <a href='mailto:{user_email}'>{user_email}</a>.</span>"    
+            htmlmessage += f"<span style='font-family:calibri; font-size:11pt'> No action is required from your end, but please be aware that you will receive an automated email from TDR for each dataset listed above to let you know that the dataset has been published when this process is complete because it will result in the publication of a new minor version of the dataset.</span><br><br>"
+        htmlmessage += f"<span style='font-family:calibri, font-size:11pt'><i>This email has been automatically generated. If you have any questions, please reach out to the Research Data Coordinator, {user_title} {user_name}{user_credentials}, at <a href='mailto:{user_email}'>{user_email}</a></i>.</span>"    
         mail.Attachments.Add(str(faq_absolute_path))
         mail.HTMLBody = htmlmessage
         mail.To = recipient_email
