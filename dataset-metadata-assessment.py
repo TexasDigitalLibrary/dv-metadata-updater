@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import pandas as pd
@@ -53,8 +54,8 @@ print(f'String to add to filenames: {my_institution_filename}.\n')
 print(f'Short hand version of institution name: {my_institution_short_name}.\n')
 
 # Script directory
-script_directory = os.getcwd()
-print(f'The script directory is {script_directory}.\n')
+script_dir = os.getcwd()
+print(f'The script directory is {script_dir}.\n')
 
 # Create directories
 if test:
@@ -63,23 +64,38 @@ if test:
     else:
         os.mkdir('test')
         print('test directory has been created\n')
+    test_dir = os.path.join(script_dir, 'test')
     os.chdir('test')
     if os.path.isdir('outputs'):
         print('test outputs directory found - no need to recreate\n')
     else:
         os.mkdir('outputs')
         print('test outputs directory has been created\n')
+    outputs_dir = os.path.join(test_dir, 'outputs')
+    if os.path.isdir('logs'):
+        print('test logs directory found - no need to recreate\n')
+    else:
+        os.mkdir('logs')
+        print('test logs directory has been created\n')
+    logs_dir = os.path.join(test_dir, 'logs')
 else:
     if os.path.isdir('outputs'):
         print('outputs directory found - no need to recreate\n')
     else:
         os.mkdir('outputs')
         print('outputs directory has been created\n')
+    outputs_dir = os.path.join(script_dir, 'outputs')
+    if os.path.isdir('logs'):
+        print('logs directory found - no need to recreate\n')
+    else:
+        os.mkdir('logs')
+        print('logs directory has been created\n')
+    logs_dir = os.path.join(script_dir, 'logs')
 
 # Load existing ROR mapping for affiliation re-curation
 ## Only purpose of loading in this script is to add new affiliations
 ## Workflow will proceed if this file does not exist
-file_path = f'{script_directory}/affiliation-map-primary.csv'
+file_path = f'{script_dir}/affiliation-map-primary.csv'
 if os.path.exists(file_path):
     master_ror_matching = pd.read_csv(file_path)
     print(f'"{file_path}" exists and has been loaded into a dataFrame.')
@@ -572,6 +588,12 @@ if second_timeouts:
         except Exception as e:
             final_timeouts.append({"doi": doi, "reason": "Persistent Timeout/Error"})
 
+## Saving failed retrievals
+with open(f'{logs_dir}/{today}_failed-retrievals.csv', 'w', newline='', encoding='utf-8') as f:
+    writer = csv.writer(f)
+    writer.writerow(['DOI', 'Error Message'])
+    writer.writerows(final_timeouts)
+
 data_tdr_native = {'datasets': results}
 
 print(f"Number of datasets that initially timed out: {len(first_timeouts)}\n")
@@ -1001,7 +1023,7 @@ if master_ror_matching is None:
         # If the ROR plug-in is not working, any previously-matched ROR entries will just list the ROR URL as the affiliation
         mask = ~df_all_affiliations_dedup['affiliation'].str.contains('https://ror.org/', case=False, na=False) # Case-insensitive and handles potential NaN values
         df_all_affiliations_dedup = df_all_affiliations_dedup[mask]
-    df_all_affiliations_dedup.to_csv(f'{script_directory}/affiliation-map-primary.csv', index=False, encoding='utf-8-sig')
+    df_all_affiliations_dedup.to_csv(f'{script_dir}/affiliation-map-primary.csv', index=False, encoding='utf-8-sig')
 else: 
     # Concat existing mapping file with new list of unique affiliations, drop duplicates (keep first will retain existing matches)
     ## Requires you to have manually added a 'ror' column to original output
@@ -1016,7 +1038,7 @@ else:
     print(f'Total unique affiliations: {len(df_all_affiliations_dedup_expanded_pruned) - 1}\n')
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned[['affiliation', 'ror', 'official_name']]
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned.dropna(subset=['affiliation'])
-    df_all_affiliations_dedup_expanded_pruned.to_csv(f'{script_directory}/affiliation-map_TEMP.csv', index=False, encoding='utf-8-sig')
+    df_all_affiliations_dedup_expanded_pruned.to_csv(f'{script_dir}/affiliation-map_TEMP.csv', index=False, encoding='utf-8-sig')
 if master_ror_matching is not None:
     print(f'Number of new affiliations to check: {len(df_all_affiliations_dedup_expanded_pruned) - len(master_ror_matching)}.\n')
 
