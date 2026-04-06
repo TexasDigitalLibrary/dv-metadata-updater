@@ -43,6 +43,15 @@ inputs_dir = os.path.join(script_dir, 'outputs')
 pattern = f'_final-combined-remediated_ANNOTATED.csv'
 df = load_most_recent_file(inputs_dir, pattern)
 df = df.sort_values(by=['parent_dataverse', 'dataverse'])
+
+# Need to update Boolean 'fixed' columns to handle manual edits
+## ORCID
+df['fix_orcid'] = (df['orcid_action'].notna() & (df['orcid_action'] != '')) | (df['inferred_basis'].notna() & (df['inferred_basis'] != ''))
+## Overarching 'fix' column
+fixed_cols = [col for col in df.columns if col.startswith('fix_')]
+if fixed_cols:
+    df['fixed'] = df[fixed_cols].any(axis=1)
+
 ## Remove ones flagged only for review (fixed = False)
 fixed_df = df[df['fixed']]
 df_dois = fixed_df.drop_duplicates(subset=['doi'])
@@ -124,6 +133,7 @@ else:
 # ============================================
 if retrieve:
     print('Beginning to retrieve JSON representations of datasets.\n')
+    print(f'Retrieving {len(df_dois)} records.\n')
     # Create empty lists to record timeouts
     first_timeouts = []
     final_timeouts = []
@@ -317,19 +327,33 @@ def apply_author_fixes(author, row, doi, logger):
                     "value": "ORCID"
                 }
             
-            # Create or update authorIdentifier with expanded structure
-            author['authorIdentifier'] = {
-                "typeName": "authorIdentifier",
-                "multiple": False,
-                "typeClass": "primitive",
-                "value": orcid_value,
-                "expandedvalue": {
-                    "personName": person_name,
-                    "@id": orcid_value,
-                    "scheme": "ORCID",
-                    "@type": "https://schema.org/Person"
+            # Add authorIdentifier if it doesn't exist
+            if 'authorIdentifier' not in author:
+                author['authorIdentifier'] = {
+                    "typeName": "authorIdentifier",
+                    "multiple": False,
+                    "typeClass": "primitive",
+                    "value": orcid_value,
+                    "expandedvalue": {
+                        "personName": person_name,
+                        "@id": orcid_value,
+                        "scheme": "ORCID",
+                        "@type": "https://schema.org/Person"
+                    }
                 }
-            }
+            else: # Update if field exists in some form
+                author['authorIdentifier'] = {
+                    "typeName": "authorIdentifier",
+                    "multiple": False,
+                    "typeClass": "primitive",
+                    "value": orcid_value,
+                    "expandedvalue": {
+                        "personName": person_name,
+                        "@id": orcid_value,
+                        "scheme": "ORCID",
+                        "@type": "https://schema.org/Person"
+                    }
+                }
             
             logger.log_change(
                 doi=doi,
@@ -621,84 +645,84 @@ print("-"*60 + "\n")
 #     UPDATE AUTHOR METADATA THROUGH API
 # ============================================
 
-server_url = 'https://dataverse.tdl.org'
-headers_tdr = {
-    'X-Dataverse-key': config['KEYS']['dataverse_token'],
-    'Content-Type': 'application/json'
-}
+# server_url = 'https://dataverse.tdl.org'
+# headers_tdr = {
+#     'X-Dataverse-key': config['KEYS']['dataverse_token'],
+#     'Content-Type': 'application/json'
+# }
 
-dir_path = Path(modified_json_dir)
+# dir_path = Path(modified_json_dir)
 
-for filename in dir_path.iterdir():
-    if filename.is_file():
-        doi_temp = filename.stem.split("modified-")[1].split("-dataset-metadata")[0]
-        doi = f"doi:{doi_temp.replace('_', '/')}"
-        print(f'Updating {doi}\n')
+# for filename in dir_path.iterdir():
+#     if filename.is_file():
+#         doi_temp = filename.stem.split("modified-")[1].split("-dataset-metadata")[0]
+#         doi = f"doi:{doi_temp.replace('_', '/')}"
+#         print(f'Updating {doi}\n')
 
-        with open(filename, 'r', encoding='utf-8') as f:
-            full_data = json.load(f)
+#         with open(filename, 'r', encoding='utf-8') as f:
+#             full_data = json.load(f)
         
-        dataset_info = full_data['data']
-        # Check for latestVersion or datasetVersion (varies depending on whether it has been versioned or not)
-        if 'latestVersion' in dataset_info:
-            dataset_version = dataset_info['latestVersion']
-        else:
-            dataset_version = dataset_info['datasetVersion']
+#         dataset_info = full_data['data']
+#         # Check for latestVersion or datasetVersion (varies depending on whether it has been versioned or not)
+#         if 'latestVersion' in dataset_info:
+#             dataset_version = dataset_info['latestVersion']
+#         else:
+#             dataset_version = dataset_info['datasetVersion']
 
-        # Create payload with EVERYTHING except 'files' (https://guides.dataverse.org/en/latest/api/native-api.html#update-metadata-for-a-dataset)
-        payload = {k: v for k, v in dataset_version.items() if k != 'files'}
+#         # Create payload with EVERYTHING except 'files' (https://guides.dataverse.org/en/latest/api/native-api.html#update-metadata-for-a-dataset)
+#         payload = {k: v for k, v in dataset_version.items() if k != 'files'}
 
-        # Create draft
-        ## Catch any failures
-        failed_uploads = []
-        try:
-            update_url = f"{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}"
-            response = requests.put(update_url, headers=headers_tdr, json=payload)
+#         # Create draft
+#         ## Catch any failures
+#         failed_uploads = []
+#         try:
+#             update_url = f"{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}"
+#             response = requests.put(update_url, headers=headers_tdr, json=payload)
 
-            if response.status_code == 200:
-                print("✓ Dataset metadata updated versioned.\n")
-            else:
-                error_msg = f"Status code: {response.status_code}. {response.text}"
-                print(f"✗ Failed to update metadata. {error_msg}\n")
-                failed_uploads.append((doi, error_msg))
+#             if response.status_code == 200:
+#                 print("✓ Dataset metadata updated versioned.\n")
+#             else:
+#                 error_msg = f"Status code: {response.status_code}. {response.text}"
+#                 print(f"✗ Failed to update metadata. {error_msg}\n")
+#                 failed_uploads.append((doi, error_msg))
 
-            doi_without_prefix = doi.replace('doi:', '')
-            filtered_row = df_dois[df_dois['doi'] == doi_without_prefix]
-            if len(filtered_row) == 0:
-                print(f"Warning: DOI '{doi_without_prefix}' not found in DataFrame")
-                # Handle missing DOI - options:
-                needs_review = None
-                is_draft = None
-            else:
-                needs_review = filtered_row['to_review'].iloc[0]
-                is_draft = filtered_row['current_status'].iloc[0] == 'DRAFT'
+#             doi_without_prefix = doi.replace('doi:', '')
+#             filtered_row = df_dois[df_dois['doi'] == doi_without_prefix]
+#             if len(filtered_row) == 0:
+#                 print(f"Warning: DOI '{doi_without_prefix}' not found in DataFrame")
+#                 # Handle missing DOI - options:
+#                 needs_review = None
+#                 is_draft = None
+#             else:
+#                 needs_review = filtered_row['to_review'].iloc[0]
+#                 is_draft = filtered_row['current_status'].iloc[0] == 'DRAFT'
             
-            if needs_review or is_draft:
-                print(f"⚠ Dataset needs further review or was in draft status.\n")
-            # else:
-            #     # Publish the dataset
-            #     publish_url = f"{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor"
-            #     response = requests.post(publish_url, headers=headers_tdr)
+#             if needs_review or is_draft:
+#                 print(f"⚠ Dataset needs further review or was in draft status.\n")
+#             # else:
+#             #     # Publish the dataset
+#             #     publish_url = f"{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor"
+#             #     response = requests.post(publish_url, headers=headers_tdr)
 
-            #     if response.status_code == 200:
-            #         print("✓ Dataset published successfully.\n")
-            #     else:
-            #         print(f"✗ Failed to publish dataset. Status code: {response.status_code}")
-            #         print(response.text)
-        except requests.exceptions.RequestException as e:
-            error_msg = str(e)
-            print(f"Request failed for {doi}: {error_msg}")
-            failed_uploads.append((doi, error_msg))  
+#             #     if response.status_code == 200:
+#             #         print("✓ Dataset published successfully.\n")
+#             #     else:
+#             #         print(f"✗ Failed to publish dataset. Status code: {response.status_code}")
+#             #         print(response.text)
+#         except requests.exceptions.RequestException as e:
+#             error_msg = str(e)
+#             print(f"Request failed for {doi}: {error_msg}")
+#             failed_uploads.append((doi, error_msg))  
 
-# Print failed uploads
-print(failed_uploads)
-list_length = len(failed_uploads)
-print(f'The final number of failed uploads is: {list_length}.\n')
-## Saving failed uploads
-with open(f'{logs_dir}/{today}_failed-uploads.csv', 'w', newline='', encoding='utf-8') as f:
-    writer = csv.writer(f)
-    writer.writerow(['DOI', 'Error Message'])
-    writer.writerows(failed_uploads)
+# # Print failed uploads
+# print(failed_uploads)
+# list_length = len(failed_uploads)
+# print(f'The final number of failed uploads is: {list_length}.\n')
+# ## Saving failed uploads
+# with open(f'{logs_dir}/{today}_failed-uploads.csv', 'w', newline='', encoding='utf-8') as f:
+#     writer = csv.writer(f)
+#     writer.writerow(['DOI', 'Error Message'])
+#     writer.writerows(failed_uploads)
 
 # Calculate total runtime
 end_time = datetime.now()
