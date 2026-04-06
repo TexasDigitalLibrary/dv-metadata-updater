@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.0.1
-* *Released*: 2026/03/30
+* *Version*: 1.0.2
+* *Released*: 2026/04/06
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/03/30
+* *README last updated*: 2026/04/06
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -14,10 +14,10 @@
 3. [Outputs](#outputs)
 4. [Requirements](#requirements)
 5. [Development](#development)
-6. [Versions] (#versions)
+6. [Versions](#versions)
 
 ## Purpose
-This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the Texas Data Repository, a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review.
+This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the [Texas Data Repository](https://dataverse.tdl.org/), a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review. Any of the automated components can also be done or enhanced manually.
 
 ## Contents
 There are five scripts in this workflow, but only two or three are "necessary" depending on how you want to adopt it. They are separated in part because there are a few manual steps involved in this process and in part because not all of them are necessary depending on a local use.
@@ -71,7 +71,13 @@ This script does not generate any output files.
 | `{today}_metadata-changes-log.json` | Change log file with the same information as the CSV version. Each DOI is used as the root, with all changes to any component nested within it (i.e. single entry per DOI). |
 
 ## Requirements
-This workflow mostly makes use of modules in the Python standard library: *ast*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script) and *rapidfuzz*. The `utils.py` file with custom functions is also necessary. For the addition of ROR identifiers and the clean-up/addition of ORCID identifiers, the [external vocab plug-in for ORCID and ROR](https://github.com/gdcc/dataverse-external-vocab-support/blob/main/examples/authorIDandAffilationUsingORCIDandROR.md) will need to be activated for the Dataverse installation; this plug-in has its own dependencies. As noted in its description, `dataset-email-generator.py` is only designed for Microsoft Outlook and requires you to have the desktop application installed and logged into; I am not aware of any requirements for a specific Outlook version, operating system, or institutional configuration of Outlook but have not tested this.
+This workflow mostly makes use of modules in the Python standard library: *ast*, *csv*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script) and *rapidfuzz* (this may be deprecated in the future). The `utils.py` file with custom functions is also necessary. 
+
+For the addition of ROR identifiers and the clean-up/addition of ORCID identifiers, the [external vocab plug-in for ORCID and ROR](https://github.com/gdcc/dataverse-external-vocab-support/blob/main/examples/authorIDandAffilationUsingORCIDandROR.md) will need to be activated for the Dataverse installation; this plug-in has its own dependencies. I have tested this process when the plug-in was installed but not activated, which seems to work fine, but I am not sure if it works the same if the plug-in is simply not installed. 
+
+As noted in its description, `dataset-email-generator.py` is only designed for Microsoft Outlook and requires you to have the desktop application installed and logged into; I am not aware of any requirements for a specific Outlook version, operating system, or institutional configuration of Outlook but have not tested this.
+
+The script was developed in **Python 3.12** for **Dataverse 6.5**. I have not tested backwards or forwards compatibility at this time (but I assume the forwards compatibility is okay).
 
 ### Config file fields
 | File | Content |
@@ -89,4 +95,5 @@ This workflow mostly makes use of modules in the Python standard library: *ast*,
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Versions
-**Version 1.0.1** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. 
+* **Version 1.0.2** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. It also adds functionality to identify datasets without any funding metadata and functionality to write records that fail to upload through the API due to legacy metadata validation failures.
+* **Version 1.0.1** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. 

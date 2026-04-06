@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import pandas as pd
@@ -657,9 +658,9 @@ for filename in dir_path.iterdir():
             if response.status_code == 200:
                 print("✓ Dataset metadata updated versioned.\n")
             else:
-                print(f"✗ Failed to update metadata. Status code: {response.status_code}.\n")
-                print(response.text)
-                failed_uploads.append(doi) 
+                error_msg = f"Status code: {response.status_code}. {response.text}"
+                print(f"✗ Failed to update metadata. {error_msg}\n")
+                failed_uploads.append((doi, error_msg))
 
             doi_without_prefix = doi.replace('doi:', '')
             filtered_row = df_dois[df_dois['doi'] == doi_without_prefix]
@@ -685,13 +686,19 @@ for filename in dir_path.iterdir():
             #         print(f"✗ Failed to publish dataset. Status code: {response.status_code}")
             #         print(response.text)
         except requests.exceptions.RequestException as e:
-            print(f"Request failed for {doi}: {e}")
-            failed_uploads.append(doi)    
+            error_msg = str(e)
+            print(f"Request failed for {doi}: {error_msg}")
+            failed_uploads.append((doi, error_msg))  
 
 # Print failed uploads
 print(failed_uploads)
 list_length = len(failed_uploads)
 print(f'The final number of failed uploads is: {list_length}.\n')
+## Saving failed uploads
+with open(f'{logs_dir}/{today}_failed-uploads.csv', 'w', newline='', encoding='utf-8') as f:
+    writer = csv.writer(f)
+    writer.writerow(['DOI', 'Error Message'])
+    writer.writerows(failed_uploads)
 
 # Calculate total runtime
 end_time = datetime.now()

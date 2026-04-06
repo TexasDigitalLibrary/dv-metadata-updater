@@ -1,28 +1,41 @@
 {
     "KEYS": {
-        "dataverse_token": ""
+        "dataverse_token": "",
+        "sandbox_token": ""
     },
     "USER": {
-        "user_email": "your.email@email.domain",
-        "user_name": "Your Name",
-        "user_title": "",
-        "user_credentials": ""
+        "user_email": "email@domain.edu",
+        "user_name": "First Last",
+        "user_title": "Dr.",
+        "user_credentials": "Ph.D."
     },
     "INSTITUTION":{
-        "filename": "string-for-use-in-filenames",
-        "myInstitution": "UT Austin"
+        "filename": "insert-institution-shorthand",
+        "myInstitution": ""
     },
     "EXCLUDED":[
-        "Smith, John",
-        "Roberts, Samantha"
+        "Adaimi, Rebecca",
+        "Admin, Dataverse",
+        "Albert A. Palacios",
+        "Benson Special Collections",
+        "Gorobets Martins, Eduardo",
+        "Hutchins, Vanessa",
+        "Latin American Digital Initiatives",
+        "Ortiz Baco, Joshu",
+        "Palacios, Albert",
+        "Palacios, Alberto",
+        "Palacios, Albert A.",
+        "Perez Zamarripa, Abisai",
+        "Polk, Theresa",
+        "Ramos, Rebekah"
     ],
     "PEOPLE_CONDITIONAL":
     [
-        "Clark, Matthew",
-        "Washington, Kelly" 
+        "Pierce Meyer, Katie",
+        "Trelogan, Jessica" 
     ],
     "TOGGLES":{
-        "test_environment": false,
+        "test_environment": true,
         "test_remediation": false,
         "test_email": true,
         "retrieve_json": false,
@@ -36,9 +49,10 @@
         "ror": true,
         "names": true,
         "keywords": true,
+        "funding": true,
         "punctuation": true,
         "works": true,
-        "licenses": true
+        "licenses": false
     },
     "VARIABLES": {
         "PAGE_SIZES": {
@@ -47,7 +61,7 @@
         },
         "PAGE_LIMITS": {
             "dataverse_prod": 100,
-            "dataverse_test": 5
+            "dataverse_test": 7
         },
         "PAGE_STARTS": {
             "dataverse": 0

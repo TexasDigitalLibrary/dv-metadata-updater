@@ -327,6 +327,7 @@ hyphen_pattern = r'^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$'
 digits_pattern = r'^\d{15}[\dXx]$'                                              # missing hyphens
 http_pattern = r'^http://orcid\.org/\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$' 
 http_space_pattern = r'^http://orcid\.org/\s+\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$' 
+missing_protocol_pattern = r'^orcid\.org/\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$'
 
 ## Hyphenated and with URL but with space in URL
 mask_space = mask_orcid_target & orcid_str.str.match(url_space_pattern, na=False)
@@ -340,6 +341,13 @@ authors_merged.loc[mask_space, 'orcid_action'] = 'removed space; added schema'
 mask_hyphen = mask_orcid_target & orcid_str.str.match(hyphen_pattern, na=False)
 authors_merged.loc[mask_hyphen, 'orcid_remediated'] = 'https://orcid.org/' + orcid_str[mask_hyphen]
 authors_merged.loc[mask_hyphen, 'orcid_action'] = 'added url'
+
+## Missing protocol (orcid.org/XXXX-XXXX-XXXX-XXXX)
+mask_no_protocol = mask_orcid_target & orcid_str.str.match(missing_protocol_pattern, na=False)
+authors_merged.loc[mask_no_protocol, 'orcid_remediated'] = 'https://' + orcid_str[mask_no_protocol]
+authors_merged.loc[mask_no_protocol, 'author_identifier_expanded_remediated'] = authors_merged.loc[mask_no_protocol, 'orcid_remediated']
+authors_merged.loc[mask_no_protocol, 'author_identifier_scheme_remediated'] = 'ORCID'
+authors_merged.loc[mask_no_protocol, 'orcid_action'] = 'added protocol'
 
 ## Neither hyphenated nor with URL
 mask_digits = mask_orcid_target & orcid_str.str.match(digits_pattern, na=False)
