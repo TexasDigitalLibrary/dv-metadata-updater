@@ -1,7 +1,7 @@
 # README
 
 ## Metadata
-* *Version*: 1.1.0
+* *Version*: 1.1.1
 * *Released*: 2026/04/06
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
@@ -97,6 +97,7 @@ The script was developed in **Python 3.12** for **Dataverse 6.5**. I have not te
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Versions
+* **Version 1.1.1** makes a minor bug fix for adding ORCIDs where none existed previously.
 * **Version 1.1.0** adds a two new scripts, one for testing with a sandbox Dataverse and the other for summarizing/graphing the results of metadata re-curation. Additional logging functionality is also added.
 * **Version 1.0.2** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. It also adds functionality to identify datasets without any funding metadata and functionality to write records that fail to upload through the API due to legacy metadata validation failures.
 * **Version 1.0.1** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. 
