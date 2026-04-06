@@ -1,7 +1,7 @@
 # README
 
 ## Metadata
-* *Version*: 1.0.2
+* *Version*: 1.1.0
 * *Released*: 2026/04/06
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
@@ -20,7 +20,7 @@
 This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the [Texas Data Repository](https://dataverse.tdl.org/), a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review. Any of the automated components can also be done or enhanced manually.
 
 ## Contents
-There are five scripts in this workflow, but only two or three are "necessary" depending on how you want to adopt it. They are separated in part because there are a few manual steps involved in this process and in part because not all of them are necessary depending on a local use.
+There are seven scripts in this workflow, but only two or three are "necessary" depending on how you want to adopt it. They are separated in part because there are a few manual steps involved in this process and in part because not all of them are necessary depending on a local use.
 
 | Script | Purpose |
 |------|---------|
@@ -29,6 +29,8 @@ There are five scripts in this workflow, but only two or three are "necessary" d
 | `dataset-metadata-remediation.py` | Imports the outputs from `dataset-metadata-assessment.py` and creates new columns for remediated outputs (e.g., flipped author names, reformatted ORCIDs). Each remediation component can be toggled on or off (e.g., ROR remediation but not ORCID remediation). Runtime is <30 seconds. |
 | `dataset-email-generator.py` | Loops through the output of the previous files, identify all unique contact emails, identify all datasets slated for remediation for which a given email is listed, and prepares an email with the list of relevant datasets for each contact, including an FAQ attachment on the process. The email can be created in your local Drafts folder or set to auto-send upon running the script. Current runtime is <1 minute. |
 | `dataset-metadata-updater.py` | Imports the final output from the previous files with the columns of remediated metadata, retrieves JSON representations of all affected datasets from the Dataverse API, substitutes the changed metadata, pushes the updated JSON through the API, and creates drafts of the new version. The script can also be set to put updated versions into review or directly publish them. As with the third script, toggles for each metadata variable can be turned on or off if you only want to do certain metadata steps. Runtime to retrieve current JSON representations of the datasets' metadata and to update them is typically ~1 minute but will depend on the number of datasets and API stability. Likewise, time to push changes back to the server will depend on API stability. |
+| `sandbox-metadata-updater.py` | Sandbox script for a sandbox instance of Dataverse in order to gain familiarity on how auto-updating of metadata for datasets (either putting into draft or directly publishing) works. |
+| `workflow-summary.py` | Imports the most recent and second most recent dataframes for authors and datasets with metadata flags but no remediation, then outputs text and graphical comparisons of pre- and post-processing metadata quality. Limited to graphs and summaries for RDAP 2026 Summit at present. |
 
 | Supporting file | Purpose |
 |------|---------|
@@ -95,5 +97,6 @@ The script was developed in **Python 3.12** for **Dataverse 6.5**. I have not te
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Versions
+* **Version 1.1.0** adds a two new scripts, one for testing with a sandbox Dataverse and the other for summarizing/graphing the results of metadata re-curation. Additional logging functionality is also added.
 * **Version 1.0.2** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. It also adds functionality to identify datasets without any funding metadata and functionality to write records that fail to upload through the API due to legacy metadata validation failures.
 * **Version 1.0.1** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. 
