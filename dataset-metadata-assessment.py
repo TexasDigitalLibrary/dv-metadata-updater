@@ -30,6 +30,7 @@ start_time = datetime.now()
 today = datetime.now().strftime('%Y%m%d') 
 
 # Dynamic variables for which attributes to re-curate
+recurate_funding = config['RECURATION']['funding']
 recurate_keywords = config['RECURATION']['keywords']
 recurate_licenses = config['RECURATION']['licenses']
 recurate_names = config['RECURATION']['names']
@@ -597,9 +598,13 @@ for item in data_tdr_native['datasets']:
     citation = latest.get('metadataBlocks', {}).get('citation', {})
     fields = citation.get('fields', [])
     keywords = None
+    keywords_vocab = None
+    funding = None
     depositor = 'None listed'
     contacts = 'None listed'
     contact_emails = 'None listed'
+    grant_agencies = None
+    grant_numbers = None
     citations = None
     relations = None
     dois = None
@@ -611,10 +616,14 @@ for item in data_tdr_native['datasets']:
             notes = field.get('value', '')
         if field['typeName'] == 'keyword':
             keywords = []
+            keywords_vocab=[]
             for keyword_dict in field.get('value', []):
                 keyword_value = keyword_dict.get('keywordValue', {}).get('value', None)
+                keyword_vocab = keyword_dict.get('keywordVocabulary', {}).get('value', None)
                 if keyword_value:
                     keywords.append(keyword_value)
+                if keyword_vocab:
+                    keywords_vocab.append(keyword_vocab)
             keywords_str = '; '.join(keywords)
         if field['typeName'] == 'datasetContact':
             contacts = []
@@ -630,6 +639,18 @@ for item in data_tdr_native['datasets']:
             contact_emails = '; '.join(contact_emails)
         if field['typeName'] == 'depositor':
             depositor = field.get('value', None)
+        if field['typeName'] == 'grantNumber':
+            grant_agencies = []
+            grant_numbers = []
+            for grant in field.get('value', []):
+                agency = grant.get('grantNumberAgency', {}).get('value', None)
+                number = grant.get('grantNumberValue', {}).get('value', None)
+                if agency:
+                    grant_agencies.append(agency)
+                if number:
+                    grant_numbers.append(number)
+            grant_agencies = '; '.join(grant_agencies)
+            grant_numbers = '; '.join(grant_numbers) 
         if field['typeName'] == 'publication':
             citations = []
             relations = []
@@ -688,6 +709,9 @@ for item in data_tdr_native['datasets']:
         'current_status': status2,
         'reuse_requirements': usage,
         'license': licenseName,
+        'keywords_vocab': keywords_vocab,
+        'grant_agencies': grant_agencies,
+        'grant_numbers': grant_numbers,
         'related_works_citations': citations,
         'related_works_dois': dois,
         'related_works_urls': urls,
@@ -747,7 +771,7 @@ df_select_concatenated = pd.merge(df_datasets_dataverses, df_data_tdr_native_sel
 if recurate_punctuation:
     # If title ends in period
     ## Exempts flag if there are certain words involving periods at the end
-    exempt_words = ['U.S.', 'U.S.A.', 'et al.', 'et al. ']
+    exempt_words = ['U.S.', 'U.S.A.', ' al.']
     df_select_concatenated['flag_title_period'] = (df_select_concatenated['dataset_title'].str.endswith('.') & ~df_select_concatenated['dataset_title'].str.endswith('|'.join(exempt_words)))
     
     # If extra space in front or behind title
@@ -758,19 +782,28 @@ if recurate_punctuation:
 # ============================================
 if recurate_licenses:
     # If license is not CC0
-    df_select_concatenated['flag_license'] = df_select_concatenated['license'] != 'CC0 1.0'
+    df_select_concatenated['flag_funding'] = df_select_concatenated['license'] != 'CC0 1.0'
 
 # ============================================
 # Keyword malformatting
 # ============================================
 if recurate_keywords:
-    # If there are commas or semi-colons within one quote-bracketed string (e.g., 'fish, dog, cat')
-    df_select_concatenated['flag_keyword'] = df_select_concatenated['keywords'].apply(lambda x: any(',' in kw or ';' in kw for kw in x) if isinstance(x, list) else False)
+    # If there are commas or semi-colons within one quote-bracketed string (e.g., 'fish, dog, cat') AND the keywords are not linked to a schema
+    df_select_concatenated['flag_keyword'] = df_select_concatenated.apply(
+    lambda row: (any(',' in kw or ';' in kw for kw in row['keywords']) if isinstance(row['keywords'], list) else False) 
+    and row['keywords_vocab'] is None,
+    axis=1
+    )
     ## Example code (not deployed) if you want to use a list of excluded names to return False for a flag that it would otherwise return True for
     # df_select_concatenated['flag_keyword'] = df_select_concatenated.apply(lambda row: 
     #         (False if (row['dataset_depositor'] in excluded_people or row['dataset_contact'] in excluded_people) 
     #         else (any(',' in kw or ';' in kw for kw in row['keywords']) if isinstance(row['keywords'], list) 
     #         else False)),axis=1)
+# ============================================
+# Funding presence/format
+# ============================================
+if recurate_funding:
+    df_select_concatenated['flag_funding'] = df_select_concatenated['grant_agencies'].isna()
 
 # ============================================
 # Related works presence/format
@@ -800,7 +833,7 @@ if flags_cols:
     df_select_concatenated['flagged_any'] = df_select_concatenated[flags_cols].any(axis=1)
     df_select_concatenated['flags'] = df_select_concatenated[flags_cols].sum(axis=1)
 
-base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
+base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
 
 # Resetting list of columns to include 'flagged_any' and 'flags'
 flags_cols = [col for col in df_select_concatenated.columns if col.startswith('flag')]
@@ -873,6 +906,11 @@ if recurate_orcid:
         df_author_entries['author_identifier_expanded'].isna()
         ) & df_author_entries['author_identifier'].str.contains('https://orcid.org/00', na=False)
     
+    ### ORCID present but without https:// protocol
+    df_author_entries['malformed_orcid_single_field'] = (df_author_entries['author_identifier_scheme'].isna() | 
+        df_author_entries['author_identifier_expanded'].isna()
+        ) & df_author_entries['author_identifier'].str.contains('orcid.org/00', na=False) & ~df_author_entries['author_identifier'].str.contains('http', na=False)
+    
     flags_cols = [col for col in df_author_entries.columns if col.startswith(('malformed_orcid', 'missing'))]
     if flags_cols:
         df_author_entries['flag_orcid'] = df_author_entries[flags_cols].any(axis=1)
@@ -899,7 +937,10 @@ if recurate_names:
     flags_cols = [col for col in df_author_entries.columns if col.startswith('malformed_name')]
     if flags_cols:
         df_author_entries['flag_name'] = df_author_entries[flags_cols].any(axis=1)
-    df_author_entries['malformed_name_case'] = (df_author_entries['author_name'].str.islower() | df_author_entries['author_name'].str.isupper())
+    df_author_entries['malformed_name_case'] = (
+    (df_author_entries['author_name'].str.islower() | df_author_entries['author_name'].str.isupper()) &
+    (df_author_entries['author_name'].str.split().str.len() > 1)
+    )
 
 ## Summarizing author-related flags
 flags_cols = [col for col in df_author_entries.columns if col.startswith('flag')]
@@ -910,7 +951,7 @@ if flags_cols:
 df_author_entries.to_csv(f'outputs/{today}_{institution_filename}_all-authors-PUBLISHED.csv', index=False, encoding='utf-8-sig')
 
 # Create expanded authors df with contact/depositor info for filtering
-df_dataset_select = df_select_concatenated_pruned[['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']]
+df_dataset_select = df_select_concatenated_pruned[['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']]
 df_author_entries_expanded = pd.merge(df_author_entries, df_dataset_select, on='doi', how='left')
 df_author_entries_expanded.to_csv(f'outputs/{today}_{institution_filename}_all-authors-datasets-PUBLISHED.csv', index=False, encoding='utf-8-sig')
 
@@ -929,7 +970,7 @@ df_authors_aggregated = df_author_entries.groupby('doi').agg(**agg_dict).reset_i
 df_combined = pd.merge(df_select_concatenated_pruned, df_authors_aggregated, on='doi', how='left')
 
 # Create pruned output of datasets with some author information added
-base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
+base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
 
 # Resetting list of columns to include 'flagged_any' and 'flags'
 flags_cols = [col for col in df_combined.columns if col.startswith('flag_')]
