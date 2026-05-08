@@ -40,7 +40,7 @@ script_dir = os.getcwd()
 inputs_dir = os.path.join(script_dir, 'outputs')
 
 # Load master file of remediations
-pattern = f'_final-combined-remediated_ANNOTATED.csv'
+pattern = '_final-combined-remediated_ANNOTATED.csv'
 df = load_most_recent_file(inputs_dir, pattern)
 df = df.sort_values(by=['parent_dataverse', 'dataverse'])
 
@@ -144,28 +144,32 @@ if retrieve:
 
     url_tdr_native = 'https://dataverse.tdl.org/api/datasets/'
 
-    for doi in df_dois['doi']:
+    for idx, row in df_dois.iterrows():
+        doi = row['doi']
+        status = row['current_status']
         try:
             response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=5)
             if response.status_code == 200:
                 print(f'Retrieving JSON representation for {doi}...\n')
                 item = response.json()
                 
-                safe_doi = re.sub(r'[<>:\"/\\\\|?*]', '_', doi)
-                filename = f'{json_dir}/{safe_doi}-dataset-metadata.json'
+                safe_doi = re.sub(r'[<>:\'/\\\\|?*]', '_', doi)
+                filename = f'{json_dir}/{safe_doi}-dataset-metadata_{status}.json'
                 with open(filename, 'w') as f:
                     json.dump(item, f, indent=4)
             else:
                 print(f'Error fetching {doi}: {response.status_code}, {response.text}')
-        except Exception as e:
-            first_timeouts.append({"doi": doi, "reason": "Persistent Timeout/Error"})
+        except Exception:
+            first_timeouts.append({'doi': doi, 'reason': 'Persistent Timeout/Error'})
             list_length = len(first_timeouts)
             print(f'The current number of timeouts is: {list_length}.\n')
         
 if retrieve and first_timeouts:
-    print(f"\n--- Retrying {len(first_timeouts)} repeat timeouts with 10s limit ---\n")
+    print(f'\n--- Retrying {len(first_timeouts)} repeat timeouts with 10s limit ---\n')
     time.sleep(2) 
-    for doi in df_dois['doi']:
+    for timeout in first_timeouts:
+        doi = timeout['doi']
+        status = df_dois[df_dois['doi'] == doi]['current_status'].values[0]
         try:
             response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=5)
             if response.status_code == 200:
@@ -173,13 +177,13 @@ if retrieve and first_timeouts:
                 item = response.json()
                 
                 safe_doi = re.sub(r'[<>:\"/\\\\|?*]', '_', doi)
-                filename = f'{json_dir}/{safe_doi}-dataset-metadata.json'
+                filename = f'{json_dir}/{safe_doi}-dataset-metadata_{status}.json'
                 with open(filename, 'w') as f:
                     json.dump(item, f, indent=4)
             else:
                 print(f'Error fetching {doi}: {response.status_code}, {response.text}')
-        except Exception as e:
-            final_timeouts.append({"doi": doi, "reason": "Persistent Timeout/Error"})
+        except Exception:
+            final_timeouts.append({'doi': doi, 'reason': 'Persistent Timeout/Error'})
             list_length = len(final_timeouts)
             print(f'The final number of timeouts is: {list_length}.\n')
 
@@ -206,19 +210,19 @@ class MetadataChangeLogger:
         Exports change log to CSV format.
         """
         if not self.changes:
-            print("  ⚠ No changes to log")
+            print('  ⚠ No changes to log')
             return
         
         df_log = pd.DataFrame(self.changes)
         df_log.to_csv(output_path, index=False, encoding='utf-8')
-        print(f"  ✓ CSV log saved: {output_path}")
+        print(f'  ✓ CSV log saved: {output_path}')
     # ----- Exports to JSON ----- #
     def export_to_json(self, output_path):
         """
         Exports change log to structured JSON format.
         """
         if not self.changes:
-            print("  ⚠ No changes to log")
+            print('  ⚠ No changes to log')
             return
         
         # Group changes by DOI and author for structured output
@@ -264,18 +268,26 @@ class MetadataChangeLogger:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(output, f, indent=4, ensure_ascii=False)
         
-        print(f"  ✓ JSON log saved: {output_path}")
+        print(f'  ✓ JSON log saved: {output_path}')
 
 # ----- Locate JSON by DOI ----- #
 def find_json_by_doi(doi, json_folder):
     safe_doi = re.sub(r'[<>:\"/\\\\|?*]', '_', doi)
-    expected_filename = f'{safe_doi}-dataset-metadata.json'
+    expected_filename = f'{safe_doi}-dataset-metadata_'
     json_path = os.path.join(json_folder, expected_filename)
     
-    if os.path.exists(json_path):
-        return json_path
-    else:
-        print(f"Warning: JSON file not found for DOI {doi}")
+    try:
+        files = os.listdir(json_folder)
+        matching_files = [f for f in files if f.startswith(expected_filename) and f.endswith('.json')]
+        
+        if matching_files:
+            json_path = os.path.join(json_folder, matching_files[0])
+            return json_path
+        else:
+            print(f'Warning: JSON file not found for DOI {doi}')
+            return None
+    except FileNotFoundError:
+        print(f'Warning: JSON folder not found at {json_folder}')
         return None
 
 # ----- Applies and logs all metadata fixes ----- #
@@ -298,7 +310,7 @@ def apply_author_fixes(author, row, doi, logger):
             change_type=row['author_name_action']
         )
         
-        print(f"  ✓ Fixed name: {original_name} → {new_name}")
+        print(f'  ✓ Fixed name: {original_name} → {new_name}')
     
     # Fix 2: Expand ORCID identifier
     if recurate_orcid and row['fix_orcid'] == True:
@@ -321,37 +333,37 @@ def apply_author_fixes(author, row, doi, logger):
             # Add authorIdentifierScheme if it doesn't exist
             if 'authorIdentifierScheme' not in author:
                 author['authorIdentifierScheme'] = {
-                    "typeName": "authorIdentifierScheme",
-                    "multiple": False,
-                    "typeClass": "controlledVocabulary",
-                    "value": "ORCID"
+                    'typeName': 'authorIdentifierScheme',
+                    'multiple': False,
+                    'typeClass': 'controlledVocabulary',
+                    'value': 'ORCID'
                 }
             
             # Add authorIdentifier if it doesn't exist
             if 'authorIdentifier' not in author:
                 author['authorIdentifier'] = {
-                    "typeName": "authorIdentifier",
-                    "multiple": False,
-                    "typeClass": "primitive",
-                    "value": orcid_value,
-                    "expandedvalue": {
-                        "personName": person_name,
-                        "@id": orcid_value,
-                        "scheme": "ORCID",
-                        "@type": "https://schema.org/Person"
+                    'typeName': 'authorIdentifier',
+                    'multiple': False,
+                    'typeClass': 'primitive',
+                    'value': orcid_value,
+                    'expandedvalue': {
+                        'personName': person_name,
+                        '@id': orcid_value,
+                        'scheme': 'ORCID',
+                        '@type': 'https://schema.org/Person'
                     }
                 }
             else: # Update if field exists in some form
                 author['authorIdentifier'] = {
-                    "typeName": "authorIdentifier",
-                    "multiple": False,
-                    "typeClass": "primitive",
-                    "value": orcid_value,
-                    "expandedvalue": {
-                        "personName": person_name,
-                        "@id": orcid_value,
-                        "scheme": "ORCID",
-                        "@type": "https://schema.org/Person"
+                    'typeName': 'authorIdentifier',
+                    'multiple': False,
+                    'typeClass': 'primitive',
+                    'value': orcid_value,
+                    'expandedvalue': {
+                        'personName': person_name,
+                        '@id': orcid_value,
+                        'scheme': 'ORCID',
+                        '@type': 'https://schema.org/Person'
                     }
                 }
             
@@ -396,7 +408,7 @@ def apply_author_fixes(author, row, doi, logger):
             change_type='added ROR'
         )
         
-        print(f"  ✓ Added ROR: {row['official_name']} ({row['ror']})")
+        print(f'  ✓ Added ROR: {row['official_name']} ({row['ror']})')
 
 # ----- Pushes updates into new JSON ----- #    
 def update_author_in_json(data, row, doi, logger):
@@ -414,18 +426,18 @@ def update_author_in_json(data, row, doi, logger):
                     author_name_value = author.get('authorName', {}).get('value', '')
                     
                     if author_name_value == row['author_name']:
-                        print(f"  → Matched author: {row['author_name']}")
+                        print(f'  → Matched author: {row['author_name']}')
                         apply_author_fixes(author, row, doi, logger)
                         return True
                 
-                print(f"  ⚠ Author not found: {row['author_name']}")
+                print(f'  ⚠ Author not found: {row['author_name']}')
                 return False
         
-        print(f"  ⚠ No author field found in dataset")
+        print('  ⚠ No author field found in dataset')
         return False
         
     except KeyError as e:
-        print(f"  ✗ Error navigating JSON structure: {e}")
+        print(f'  ✗ Error navigating JSON structure: {e}')
         return False
 
 # ----- Fixes malformatted keywords ----- #
@@ -457,11 +469,11 @@ def fix_keywords(data, row, doi, logger):
                 for keyword in keywords_list:
                     if keyword:
                         new_keyword_values.append({
-                            "keywordValue": {
-                                "typeName": "keywordValue",
-                                "multiple": False,
-                                "typeClass": "primitive",
-                                "value": keyword.strip()
+                            'keywordValue': {
+                                'typeName': 'keywordValue',
+                                'multiple': False,
+                                'typeClass': 'primitive',
+                                'value': keyword.strip()
                             }
                         })
                 
@@ -476,14 +488,14 @@ def fix_keywords(data, row, doi, logger):
                     change_type='keywords split'
                 )
                 
-                print(f"  ✓ Fixed keywords: {len(original_keywords)} → {len(keywords_list)} entries")
+                print(f'  ✓ Fixed keywords: {len(original_keywords)} → {len(keywords_list)} entries')
                 return True
         
-        print(f"  ⚠ No keyword field found in dataset")
+        print('  ⚠ No keyword field found in dataset')
         return False
         
     except Exception as e:
-        print(f"  ✗ Error fixing keywords: {e}")
+        print(f'  ✗ Error fixing keywords: {e}')
         return False
 
 # ----- Fixes title malformatting ----- #
@@ -510,21 +522,21 @@ def fix_title(data, row, doi, logger):
                     change_type=row.get('title_action', 'title_correction')
                 )
                 
-                print(f"  ✓ Fixed title")
+                print('  ✓ Fixed title')
                 return True
         
-        print(f" ⚠ No title field found in dataset")
+        print(' ⚠ No title field found in dataset')
         return False
         
     except Exception as e:
-        print(f" ✗ Error fixing title: {e}")
+        print(f' ✗ Error fixing title: {e}')
         return False
 
 # ----- Overarching function ----- #
 def update_all_author_metadata(df, json_folder, output_folder):
-    print("\n" + "="*60)
-    print("STARTING METADATA UPDATE PROCESS")
-    print("="*60 + "\n")
+    print('\n' + '='*60)
+    print('STARTING METADATA UPDATE PROCESS')
+    print('='*60 + '\n')
     
     # Initialize logger
     logger = MetadataChangeLogger()
@@ -540,7 +552,7 @@ def update_all_author_metadata(df, json_folder, output_folder):
     
     for doi, author_group in grouped:
         processed += 1
-        print(f"\n[{processed}/{total_datasets}] Processing DOI: {doi}")
+        print(f'\n[{processed}/{total_datasets}] Processing DOI: {doi}')
         
         # Find corresponding JSON file
         json_file = find_json_by_doi(doi, json_folder)
@@ -552,7 +564,7 @@ def update_all_author_metadata(df, json_folder, output_folder):
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"  ✗ Error loading JSON: {e}")
+            print(f'  ✗ Error loading JSON: {e}')
             continue
         
         # Track if any changes were made
@@ -564,7 +576,7 @@ def update_all_author_metadata(df, json_folder, output_folder):
         # Use first row since all rows have same dataset-level data
         dataset_row = author_group.iloc[0]
         
-        print(f"  → Checking dataset-level metadata...")
+        print('  → Checking dataset-level metadata...')
         
         # Fix keywords
         if recurate_keywords:
@@ -579,7 +591,7 @@ def update_all_author_metadata(df, json_folder, output_folder):
         # ============================================
         # AUTHOR-LEVEL FIXES (for each author)
         # ============================================
-        print(f"  → Checking author-level metadata...")
+        print('  → Checking author-level metadata...')
         
         # Update each author in this dataset
         for idx, row in author_group.iterrows():
@@ -591,28 +603,28 @@ def update_all_author_metadata(df, json_folder, output_folder):
         # ============================================
         if changes_made:
             original_filename = os.path.basename(json_file)
-            output_path = os.path.join(output_folder, f"modified-{original_filename}")
+            output_path = os.path.join(output_folder, f'modified-{original_filename}')
             
             try:
                 with open(output_path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=4, ensure_ascii=False)
-                print(f"  ✓ Saved: modified-{original_filename}")
+                print(f'  ✓ Saved: modified-{original_filename}')
                 updated += 1
             except Exception as e:
-                print(f"  ✗ Error saving JSON: {e}")
+                print(f'  ✗ Error saving JSON: {e}')
         else:
-            print(f"  → No changes made for this dataset")
+            print('  → No changes made for this dataset')
     
-    print("\n" + "="*60)
-    print(f"PROCESS COMPLETE")
-    print(f"Datasets processed: {processed}")
-    print(f"Datasets updated: {updated}")
-    print("="*60 + "\n")
+    print('\n' + '='*60)
+    print('PROCESS COMPLETE')
+    print(f'Datasets processed: {processed}')
+    print(f'Datasets updated: {updated}')
+    print('='*60 + '\n')
     
     # Export logs
-    print("\n" + "="*60)
-    print("EXPORTING CHANGE LOGS")
-    print("="*60 + "\n")
+    print('\n' + '='*60)
+    print('EXPORTING CHANGE LOGS')
+    print('='*60 + '\n')
     
     log_csv_path = os.path.join(logs_dir, f'{today}_metadata-changes-log.csv')
     log_json_path = os.path.join(logs_dir, f'{today}_metadata-changes-log.json')
@@ -620,9 +632,9 @@ def update_all_author_metadata(df, json_folder, output_folder):
     logger.export_to_csv(log_csv_path)
     logger.export_to_json(log_json_path)
     
-    print(f"\n{'='*60}")
-    print(f"Summary: {len(logger.changes)} total changes logged")
-    print(f"{'='*60}\n")
+    print(f'\n{'='*60}')
+    print(f'Summary: {len(logger.changes)} total changes logged')
+    print(f'{'='*60}\n')
     
     return logger
 
@@ -630,16 +642,16 @@ def update_all_author_metadata(df, json_folder, output_folder):
 #     UPDATE AUTHOR METADATA IN JSONs
 # ============================================
 
-print("\n" + "-"*60)
-print("Beginning updating author metadata")
-print("-"*60 + "\n")
+print('\n' + '-'*60)
+print('Beginning updating author metadata')
+print('-'*60 + '\n')
 
 # Use the modified_json_dir we defined earlier
 update_all_author_metadata(df, json_dir, modified_json_dir)
 
-print("\n" + "-"*60)
-print("Finished updating author metadata")
-print("-"*60 + "\n")
+print('\n' + '-'*60)
+print('Finished updating author metadata')
+print('-'*60 + '\n')
 
 # ============================================
 #     UPDATE AUTHOR METADATA THROUGH API
@@ -676,14 +688,14 @@ print("-"*60 + "\n")
 #         ## Catch any failures
 #         failed_uploads = []
 #         try:
-#             update_url = f"{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}"
+#             update_url = f'{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}'
 #             response = requests.put(update_url, headers=headers_tdr, json=payload)
 
 #             if response.status_code == 200:
-#                 print("✓ Dataset metadata updated versioned.\n")
+#                 print('✓ Dataset metadata updated versioned.\n')
 #             else:
-#                 error_msg = f"Status code: {response.status_code}. {response.text}"
-#                 print(f"✗ Failed to update metadata. {error_msg}\n")
+#                 error_msg = f'Status code: {response.status_code}. {response.text}'
+#                 print(f'✗ Failed to update metadata. {error_msg}\n')
 #                 failed_uploads.append((doi, error_msg))
 
 #             doi_without_prefix = doi.replace('doi:', '')
@@ -698,20 +710,20 @@ print("-"*60 + "\n")
 #                 is_draft = filtered_row['current_status'].iloc[0] == 'DRAFT'
             
 #             if needs_review or is_draft:
-#                 print(f"⚠ Dataset needs further review or was in draft status.\n")
+#                 print('⚠ Dataset needs further review or was in draft status.\n')
 #             # else:
 #             #     # Publish the dataset
-#             #     publish_url = f"{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor"
+#             #     publish_url = f'{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor'
 #             #     response = requests.post(publish_url, headers=headers_tdr)
 
 #             #     if response.status_code == 200:
-#             #         print("✓ Dataset published successfully.\n")
+#             #         print('✓ Dataset published successfully.\n')
 #             #     else:
-#             #         print(f"✗ Failed to publish dataset. Status code: {response.status_code}")
+#             #         print(f'✗ Failed to publish dataset. Status code: {response.status_code}')
 #             #         print(response.text)
 #         except requests.exceptions.RequestException as e:
 #             error_msg = str(e)
-#             print(f"Request failed for {doi}: {error_msg}")
+#             print(f'Request failed for {doi}: {error_msg}')
 #             failed_uploads.append((doi, error_msg))  
 
 # # Print failed uploads
@@ -727,6 +739,6 @@ print("-"*60 + "\n")
 # Calculate total runtime
 end_time = datetime.now()
 runtime = end_time - start_time
-print(f"\n{'='*60}")
-print(f"Total Runtime: {runtime}")
-print(f"{'='*60}\n")
+print(f'\n{'='*60}')
+print(f'Total Runtime: {runtime}')
+print(f'{'='*60}\n')

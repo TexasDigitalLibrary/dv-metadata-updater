@@ -97,10 +97,18 @@ else:
 ## Workflow will proceed if this file does not exist
 file_path = f'{script_dir}/affiliation-map-primary.csv'
 if os.path.exists(file_path):
-    master_ror_matching = pd.read_csv(file_path)
+    affiliation_ror_map = pd.read_csv(file_path)
     print(f'"{file_path}" exists and has been loaded into a dataFrame.')
 else:
-    master_ror_matching = None
+    affiliation_ror_map = None
+    print(f'"{file_path}" does not exist. No file loaded.')
+
+file_path = f'{script_dir}/funder-map-primary.csv'
+if os.path.exists(file_path):
+    funder_ror_map = pd.read_csv(file_path)
+    print(f'"{file_path}" exists and has been loaded into a dataFrame.')
+else:
+    funder_ror_map = None
     print(f'"{file_path}" does not exist. No file loaded.')
 
 # ============================================
@@ -559,7 +567,7 @@ for doi in df_datasets_dataverses['doi']:
         final_timeouts.append({"doi": doi, "reason": str(e)})
 
 if first_timeouts:
-    print(f"\n--- Retrying {len(first_timeouts)} timeouts with 10s limit ---\n")
+    print(f"\n--- Retrying {len(first_timeouts)} timeouts with 5s limit ---\n")
     time.sleep(2) 
     for doi in first_timeouts:
         try:
@@ -590,9 +598,16 @@ if second_timeouts:
 
 ## Saving failed retrievals
 with open(f'{logs_dir}/{today}_failed-retrievals.csv', 'w', newline='', encoding='utf-8') as f:
-    writer = csv.writer(f)
-    writer.writerow(['DOI', 'Error Message'])
-    writer.writerows(final_timeouts)
+    fieldnames = ['Date', 'DOI', 'Error Message']
+    writer = csv.DictWriter(f, fieldnames=fieldnames)
+    
+    writer.writeheader()
+    for item in final_timeouts:
+        writer.writerow({
+            'Date': today,
+            'DOI': item['doi'],
+            'Error Message': item['reason']
+        })
 
 data_tdr_native = {'datasets': results}
 
@@ -827,6 +842,16 @@ if recurate_keywords:
 if recurate_funding:
     df_select_concatenated['flag_funding'] = df_select_concatenated['grant_agencies'].isna()
 
+# Generates unique funders regardless
+df_funders = df_select_concatenated[['grant_agencies']].copy()
+
+df_funders['grant_agencies'] = df_funders['grant_agencies'].str.split('; ')
+df_funders_exploded = df_funders.explode('grant_agencies')
+df_funders_exploded = df_funders_exploded[ (df_funders_exploded['grant_agencies'].notna()) & (df_funders_exploded['grant_agencies'] != '')]
+df_funders_exploded = df_funders_exploded.reset_index(drop=True)
+df_funders_unique = df_funders_exploded.drop_duplicates( subset=['grant_agencies'],  keep='first')
+df_funders_unique = df_funders_unique.sort_values('grant_agencies').reset_index(drop=True)
+
 # ============================================
 # Related works presence/format
 # ============================================
@@ -1015,7 +1040,7 @@ df_all_affiliations_dedup=df_all_affiliations_dedup[['affiliation']]
 #           ROR-AFFILIATION MAP
 # ============================================
 
-if master_ror_matching is None: 
+if affiliation_ror_map is None: 
     # Create mapping file if it doesn't exist yet
     print('No existing primary map file found, creating new one.\n')
     print(f'Total unique affiliations: {len(df_all_affiliations_dedup) - 1}\n')
@@ -1028,7 +1053,7 @@ else:
     # Concat existing mapping file with new list of unique affiliations, drop duplicates (keep first will retain existing matches)
     ## Requires you to have manually added a 'ror' column to original output
     print('Found existing primary map file, adding and deduplicating.\n')
-    df_all_affiliations_dedup_expanded = pd.concat([master_ror_matching, df_all_affiliations_dedup])
+    df_all_affiliations_dedup_expanded = pd.concat([affiliation_ror_map, df_all_affiliations_dedup])
     if not ror_plugin:
         # If the ROR plug-in is not working, any previously-matched ROR entries will just list the ROR URL as the affiliation name
         mask = ~df_all_affiliations_dedup_expanded['affiliation'].str.contains('https://ror.org/', case=False, na=False)
@@ -1039,8 +1064,31 @@ else:
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned[['affiliation', 'ror', 'official_name']]
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned.dropna(subset=['affiliation'])
     df_all_affiliations_dedup_expanded_pruned.to_csv(f'{script_dir}/affiliation-map_TEMP.csv', index=False, encoding='utf-8-sig')
-if master_ror_matching is not None:
-    print(f'Number of new affiliations to check: {len(df_all_affiliations_dedup_expanded_pruned) - len(master_ror_matching)}.\n')
+if affiliation_ror_map is not None:
+    print(f'Number of new affiliations to check: {len(df_all_affiliations_dedup_expanded_pruned) - len(affiliation_ror_map)}.\n')
+
+# ============================================
+#           ROR-FUNDER MAP
+# ============================================
+
+if funder_ror_map is None: 
+    # Create mapping file if it doesn't exist yet
+    print('No existing primary map file found, creating new one.\n')
+    print(f'Total unique funders: {len(df_funders_unique) - 1}\n')
+    df_funders_unique.to_csv(f'{script_dir}/funder-map-primary.csv', index=False, encoding='utf-8-sig')
+else: 
+    # Concat existing mapping file with new list of unique affiliations, drop duplicates (keep first will retain existing matches)
+    ## Requires you to have manually added a 'ror' column to original output
+    print('Found existing primary map file, adding and deduplicating.\n')
+    df_funders_expanded = pd.concat([funder_ror_map, df_funders_unique])
+    print(f'Total funders: {len(df_funders_expanded)}\n')
+    df_funders_expanded_pruned = df_funders_expanded.drop_duplicates(subset=['grant_agencies'], keep='first')
+    print(f'Total unique funders: {len(df_funders_expanded_pruned) - 1}\n')
+    df_funders_expanded_pruned = df_funders_expanded_pruned[['grant_agencies', 'ror', 'official_name']]
+    df_funders_expanded_pruned = df_funders_expanded_pruned.dropna(subset=['grant_agencies'])
+    df_funders_expanded_pruned.to_csv(f'{script_dir}/funder-map_TEMP.csv', index=False, encoding='utf-8-sig')
+if funder_ror_map is not None:
+    print(f'Number of new funders to check: {len(df_funders_expanded_pruned) - len(funder_ror_map)}.\n')
 
 print(f'Done\n---Time to run: {datetime.now() - start_time}---\n')
 if len(final_timeouts) > 0:

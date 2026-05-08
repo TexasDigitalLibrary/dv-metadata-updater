@@ -1,8 +1,8 @@
 # README
 
 ## Metadata
-* *Version*: 1.1.1
-* *Released*: 2026/04/06
+* *Version*: 1.2.1
+* *Released*: 2026/05/08
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
@@ -17,7 +17,7 @@
 6. [Versions](#versions)
 
 ## Purpose
-This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the [Texas Data Repository](https://dataverse.tdl.org/), a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review. Any of the automated components can also be done or enhanced manually.
+This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the [Texas Data Repository](https://dataverse.tdl.org/), a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). Standardizing funders against ROR is in development. It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review. Any of the automated components can also be done or enhanced manually.
 
 ## Contents
 There are seven scripts in this workflow, but only two or three are "necessary" depending on how you want to adopt it. They are separated in part because there are a few manual steps involved in this process and in part because not all of them are necessary depending on a local use.
@@ -97,6 +97,7 @@ The script was developed in **Python 3.12** for **Dataverse 6.5**. I have not te
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Versions
+* **Version 1.2.1** makes some minor syntax changes for stylistic consistency and saving JSON files. Some functionality for re-curating funder metadata is also added.
 * **Version 1.1.1** makes a minor bug fix for adding ORCIDs where none existed previously.
 * **Version 1.1.0** adds a two new scripts, one for testing with a sandbox Dataverse and the other for summarizing/graphing the results of metadata re-curation. Additional logging functionality is also added.
 * **Version 1.0.2** makes several minor bug fixes to handle issues identified after the first production run by UT Austin on March 26, 2026. It also adds functionality to identify datasets without any funding metadata and functionality to write records that fail to upload through the API due to legacy metadata validation failures.
