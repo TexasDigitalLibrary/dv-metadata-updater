@@ -46,14 +46,14 @@ else:
 # ============================================
 
 # Load most recent version of dataset-authors file
-pattern = f'_all-datasets-authors-PUBLISHED.csv'
+pattern = f'UT-austin_all-datasets-authors-PUBLISHED.csv'
 datasets_post = load_most_recent_file(outputs_dir, pattern)
 
 # Load second most recent version of dataset-authors file
 datasets_pre = load_nth_most_recent_file(outputs_dir, pattern, n=2)
 
 # Load most recent version of authors file
-pattern = f'_all-authors-datasets-PUBLISHED.csv'
+pattern = f'UT-austin_all-authors-datasets-PUBLISHED.csv'
 authors_post = load_most_recent_file(outputs_dir, pattern)
 
 # Load second most recent version of authors file
@@ -224,7 +224,9 @@ post_proportions = [
 ]
 
 plot_filename = f"{today}_dataset-level-summary.png"
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(10, 5))
+plot_width = 6.0  # inches
+plot_height = 3.5  # inches
 
 y_positions = np.arange(len(metric_names))
 
@@ -258,16 +260,71 @@ ax.set_yticks(y_positions)
 ax.set_yticklabels(metric_names, fontsize=11)
 ax.set_xlabel('Proportion of datasets', fontsize=12, fontweight='bold')
 ax.xaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
-ax.set_title('Related works', fontsize=14, fontweight='bold', pad=5)
+ax.set_title('Related publications', fontsize=14, fontweight='bold', pad=5)
 ax.set_xlim(-0.1, 1.1)
 ax.set_ylim(-0.2, len(metric_names) - 0.5)
 ax.set_facecolor('#f7f7f7')
 ax.grid(True, which='both', color='white', linestyle='-', linewidth=1.5)
 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.20), fontsize=11, 
           framealpha=0.9, ncol=2, frameon=True)
-plt.tight_layout()
+# plt.tight_layout()
+fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.15)
 plot_path = os.path.join(plots_dir, plot_filename)
 plt.savefig(plot_path, dpi=300)
+print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
+# plt.show()
+
+
+### POSTER ONES ONLY ####
+
+
+plot_filename = f"{today}_dataset-level-summary_poster.png"
+fig, ax = plt.subplots(figsize=(19.5, 10))
+
+y_positions = np.arange(len(metric_names))
+
+# Offset the circle to show arrowheads
+circle_offset = 0.02
+
+# Draw connector lines with arrows - offset from circle edges
+for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
+    ax.annotate('', xy=(post - circle_offset, i), xytext=(pre + circle_offset, i),
+                arrowprops=dict(arrowstyle='->', lw=4, color="#000000", 
+                               mutation_scale=15))
+# Plot pre dots
+ax.scatter(pre_proportions, y_positions, s=400, color="#F98989", 
+           label='Before', zorder=3, edgecolors='black', linewidth=1.5)
+# Plot post dots
+ax.scatter(post_proportions, y_positions, s=400, color='#4ECDC4', 
+           label='After', zorder=3, edgecolors='black', linewidth=1.5)
+
+# Add value labels and improvement percentages
+for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
+    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=22, fontweight='bold')
+    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=22, fontweight='bold')
+    
+    improvement = (post - pre) * 100
+    mid_point = (pre + post) / 2
+    ax.text(mid_point, i + 0.1, f'+{improvement:.1f}%', ha='center', 
+            fontsize=22, color="#1E934F", fontweight='bold',
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='#E8F8F5', edgecolor='#27AE60'))
+
+ax.set_yticks(y_positions)
+ax.set_yticklabels(metric_names, fontsize=24)
+ax.tick_params(axis='x', labelsize=24)
+ax.set_xlabel('Proportion of datasets', fontsize=26, fontweight='bold')
+ax.xaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
+ax.set_title('Related publications', fontsize=30, fontweight='bold', pad=12)
+ax.set_xlim(-0.1, 1.1)
+ax.set_ylim(-0.2, len(metric_names) - 0.5)
+ax.set_facecolor('#f7f7f7')
+ax.grid(True, which='both', color='white', linestyle='-', linewidth=1.5)
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.20), fontsize=24, 
+          framealpha=0.9, ncol=2, frameon=True)
+# plt.tight_layout()
+fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.15)
+plot_path = os.path.join(plots_dir, plot_filename)
+plt.savefig(plot_path, dpi=600)
 print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
 # plt.show()
 
@@ -285,34 +342,35 @@ post_proportions = [
 ]
 
 plot_filename = f"{today}_author-level-summary.png"
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(10, 5))
 
 y_positions = np.arange(len(metric_names))
 
 # Offset the circle to show arrowheads
 circle_offset = 0.02
 
+
 # Draw connector lines with arrows - offset from circle edges
 for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
     ax.annotate('', xy=(post - circle_offset, i), xytext=(pre + circle_offset, i),
-                arrowprops=dict(arrowstyle='->', lw=2, color="#325641", 
+                arrowprops=dict(arrowstyle='->', lw=4, color="#000000", 
                                mutation_scale=15))
 # Plot pre dots
-ax.scatter(pre_proportions, y_positions, s=150, color="#F98989", 
+ax.scatter(pre_proportions, y_positions, s=400, color="#F98989", 
            label='Before', zorder=3, edgecolors='black', linewidth=1.5)
 # Plot post dots
-ax.scatter(post_proportions, y_positions, s=150, color='#4ECDC4', 
+ax.scatter(post_proportions, y_positions, s=400, color='#4ECDC4', 
            label='After', zorder=3, edgecolors='black', linewidth=1.5)
 
 # Add value labels and improvement percentages
 for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
-    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=10, fontweight='bold')
-    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=10, fontweight='bold')
+    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=22, fontweight='bold')
+    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=22, fontweight='bold')
     
     improvement = (post - pre) * 100
     mid_point = (pre + post) / 2
     ax.text(mid_point, i + 0.15, f'+{improvement:.1f}%', ha='center', 
-            fontsize=10, color='#27AE60', fontweight='bold',
+            fontsize=22, color="#1E934F", fontweight='bold',
             bbox=dict(boxstyle='round,pad=0.3', facecolor='#E8F8F5', edgecolor='#27AE60'))
 
 ax.set_yticks(y_positions)
@@ -326,8 +384,74 @@ ax.set_facecolor('#f7f7f7')
 ax.grid(True, which='both', color='white', linestyle='-', linewidth=1.5)
 ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), fontsize=11, 
           framealpha=0.9, ncol=2, frameon=True)
-plt.tight_layout()
+# plt.tight_layout()
+fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.15)
 plot_path = os.path.join(plots_dir, plot_filename)
 plt.savefig(plot_path, dpi=300)
+print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
+# plt.show()
+
+
+
+# Extract the three proportions
+metric_names = ['ORCID (properly formatted)', 'Any author identifier', 'ROR-matched affiliation']
+pre_proportions = [
+    results_authors['pre']['orcid_proportion'],
+    results_authors['pre']['identifier_proportion'],
+    results_authors['pre']['ror_proportion']
+]
+post_proportions = [
+    results_authors['post']['orcid_proportion'],
+    results_authors['post']['identifier_proportion'],
+    results_authors['post']['ror_proportion']
+]
+
+plot_filename = f"{today}_author-level-summary_poster.png"
+fig, ax = plt.subplots(figsize=(19.5, 10))
+
+y_positions = np.arange(len(metric_names))
+
+# Offset the circle to show arrowheads
+circle_offset = 0.02
+
+# Draw connector lines with arrows - offset from circle edges
+for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
+    ax.annotate('', xy=(post - circle_offset, i), xytext=(pre + circle_offset, i),
+                arrowprops=dict(arrowstyle='->', lw=4, color="#000000", 
+                               mutation_scale=15))
+# Plot pre dots
+ax.scatter(pre_proportions, y_positions, s=400, color="#F98989", 
+           label='Before', zorder=3, edgecolors='black', linewidth=1.5)
+# Plot post dots
+ax.scatter(post_proportions, y_positions, s=400, color='#4ECDC4', 
+           label='After', zorder=3, edgecolors='black', linewidth=1.5)
+
+# Add value labels and improvement percentages
+for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
+    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=22, fontweight='bold')
+    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=22, fontweight='bold')
+    
+    improvement = (post - pre) * 100
+    mid_point = (pre + post) / 2
+    ax.text(mid_point, i + 0.1, f'+{improvement:.1f}%', ha='center', 
+            fontsize=22, color="#1E934F", fontweight='bold',
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='#E8F8F5', edgecolor='#27AE60'))
+
+ax.set_yticks(y_positions)
+ax.set_yticklabels(metric_names, fontsize=24)
+ax.tick_params(axis='x', labelsize=24)
+ax.set_xlabel('Proportion of authors', fontsize=26, fontweight='bold')
+ax.xaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
+ax.set_title('Author identifiers', fontsize=30, fontweight='bold', pad=12)
+ax.set_xlim(-0.1, 1.1)
+ax.set_ylim(-0.2, len(metric_names) - 0.5)
+ax.set_facecolor('#f7f7f7')
+ax.grid(True, which='both', color='white', linestyle='-', linewidth=1.5)
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), fontsize=23, 
+          framealpha=0.9, ncol=2, frameon=True)
+# plt.tight_layout()
+fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.15)
+plot_path = os.path.join(plots_dir, plot_filename)
+plt.savefig(plot_path, dpi=600)
 print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
 # plt.show()
