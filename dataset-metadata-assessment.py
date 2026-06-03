@@ -559,6 +559,7 @@ for doi in df_datasets_dataverses['doi']:
         if response.status_code == 200:
             print(f'Retrieving {doi}\n')
             results.append(response.json())
+            time.sleep(0.2)
         else:
             final_timeouts.append({"doi": doi, "reason": f"Status {response.status_code}"})
     except requests.exceptions.Timeout:
@@ -575,6 +576,7 @@ if first_timeouts:
             if response.status_code == 200:
                 print(f'Retrying {doi}\n')
                 results.append(response.json())
+                time.sleep(0.2)
             else:
                 final_timeouts.append({"doi": doi, "reason": f"Status {response.status_code}"})
         except requests.exceptions.Timeout:
@@ -591,6 +593,7 @@ if second_timeouts:
             if response.status_code == 200:
                 print(f'Retrying {doi} again\n')
                 results.append(response.json())
+                time.sleep(0.2)
             else:
                 final_timeouts.append({"doi": doi, "reason": f"Retry Status {response.status_code}"})
         except Exception as e:
@@ -902,8 +905,9 @@ if split_institution_output and not only_my_institution:
 # ============================================
 df_author_entries = pd.json_normalize(author_entries)
 df_author_entries['doi'] = df_author_entries['doi'].str.replace('doi:', '')
-## Ensure that leading zeros in non-hyphenated ORCID are preserved
-df_author_entries['author_identifier'] = df_author_entries['author_identifier'].astype(str)
+## Ensure that leading zeros in non-hyphenated ORCID are preserved (but leaves blanks alone)
+mask = df_author_entries['author_identifier'].notna()
+df_author_entries.loc[mask, 'author_identifier'] = df_author_entries.loc[mask, 'author_identifier'].astype(str)
 
 # ============================================
 # ROR presence
@@ -1063,6 +1067,8 @@ else:
     print(f'Total unique affiliations: {len(df_all_affiliations_dedup_expanded_pruned) - 1}\n')
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned[['affiliation', 'ror', 'official_name']]
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned.dropna(subset=['affiliation'])
+    mask = ~df_all_affiliations_dedup_expanded_pruned['affiliation'].str.contains('https://ror.org/', case=False, na=False) # Case-insensitive and handles potential NaN values
+    df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned[mask]
     df_all_affiliations_dedup_expanded_pruned.to_csv(f'{script_dir}/affiliation-map_TEMP.csv', index=False, encoding='utf-8-sig')
 if affiliation_ror_map is not None:
     print(f'Number of new affiliations to check: {len(df_all_affiliations_dedup_expanded_pruned) - len(affiliation_ror_map)}.\n')
@@ -1086,6 +1092,9 @@ else:
     print(f'Total unique funders: {len(df_funders_expanded_pruned) - 1}\n')
     df_funders_expanded_pruned = df_funders_expanded_pruned[['grant_agencies', 'ror', 'official_name']]
     df_funders_expanded_pruned = df_funders_expanded_pruned.dropna(subset=['grant_agencies'])
+    ## Ignore those with ROR
+    mask = ~df_funders_expanded_pruned['grant_agencies'].str.contains('https://ror.org/', case=False, na=False) # Case-insensitive and handles potential NaN values
+    df_funders_expanded_pruned = df_funders_expanded_pruned[mask]
     df_funders_expanded_pruned.to_csv(f'{script_dir}/funder-map_TEMP.csv', index=False, encoding='utf-8-sig')
 if funder_ror_map is not None:
     print(f'Number of new funders to check: {len(df_funders_expanded_pruned) - len(funder_ror_map)}.\n')

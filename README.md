@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.2.1
-* *Released*: 2026/05/08
+* *Version*: 1.3.1
+* *Released*: 2026/06/03
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/04/06
+* *README last updated*: 2026/06/03
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -35,8 +35,10 @@ There are seven scripts in this workflow, but only two or three are "necessary" 
 | Supporting file | Purpose |
 |------|---------|
 | `utils.py` | Contains core functions that are used repeatedly in this workflow and/or in other UT Libraries workflows. |
+| `tdl-quick-stats.ipynb` | Contains simple code for generating quick textual summaries and graphical summaries of metadata quality for the Texas Data Repository annual meeting at the Texas Conference on Digital Libraries (TCDL). |
 | `config-template.json` | Template configuration file, which controls various toggles for the workflows, contains the Dataverse API key, and provides several other dynamic fields that will need to be customized. **In order to run the script, this file needs to be populated and renamed to *config.json*. |
-| `affiliation-map-primary.csv` | Template affiliation map file, which is based on all unique affiliations for published datasets across all institutional dataverse in the Texas Data Repository as of early March 2026. If you are at a non-TDR institution, you will want to delete it and have the script create a new map because there will be minimal overlap. |
+| `affiliation-map-primary.csv` | Template affiliation map file, which is based on all unique affiliations for published datasets across all institutional dataverse in the Texas Data Repository as of June 2026. If you are at a non-TDR institution, you will want to delete it and have the script create a new map because there will be minimal overlap. |
+| `funder-map-primary.csv` | Template funder map file, which is based on all unique funders for published datasets across all institutional dataverse in the Texas Data Repository as of June 2026. If you are at a non-TDR institution, you will want to delete it and have the script create a new map because there will be minimal overlap. |
 
 ## Outputs
 ### `dataset-metadata-assessment.py`
@@ -97,6 +99,7 @@ The script was developed in **Python 3.12** for **Dataverse 6.5**. I have not te
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Versions
+* **Version 1.3.1** makes some minor edits to add manual rate limiting for large for-looped API calls and fixes a bug in the ORCID flagging. It also adds a Jupyter notebook with code for generating a few graphs for the TCDL annual meeting.
 * **Version 1.2.1** makes some minor syntax changes for stylistic consistency and saving JSON files. Some functionality for re-curating funder metadata is also added.
 * **Version 1.1.1** makes a minor bug fix for adding ORCIDs where none existed previously.
 * **Version 1.1.0** adds a two new scripts, one for testing with a sandbox Dataverse and the other for summarizing/graphing the results of metadata re-curation. Additional logging functionality is also added.
