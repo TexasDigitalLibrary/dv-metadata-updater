@@ -17,6 +17,17 @@ with open('config.json', 'r') as file:
 
 # Test environment (incomplete run, faster to complete)
 test = config['TOGGLES']['test_environment']
+## Restrict to your/one institution in TDR (True to restrict to your institution)
+only_my_institution = config['TOGGLES']['only_my_institution'] 
+# Filename version of your institution's name
+my_institution_filename = config['INSTITUTION']['filename']
+# Condition based on 'only_my_institution' toggle
+if only_my_institution:
+    institution_filename = my_institution_filename
+else:
+    institution_filename = 'all-institutions'
+# Short-hand version of your institution's name
+my_institution_short_name = config['INSTITUTION']['myInstitution']
 
 # Get directories
 script_dir = os.getcwd()
@@ -93,7 +104,7 @@ print(f'Number of datasets that had keywords fixed: {fixed_keyword_count}.\n')
 fixed_title_count = datasets_flagged_retained['dataset_title_remediated'].count()
 print(f'Number of datasets that had the title fixed: {fixed_title_count}.\n')
 
-datasets_flagged_retained.to_csv(f'{outputs_dir}/{today}_final-datasets-remediated.csv', index=False, encoding='utf-8-sig')
+datasets_flagged_retained.to_csv(f'{outputs_dir}/{today}_{my_institution_filename}_final-datasets-remediated.csv', index=False, encoding='utf-8-sig')
 
 # ============================================
 #           AUTHOR-LEVEL RE-CURATION
@@ -612,7 +623,7 @@ print(f'Number of author entries that had the ORCID fixed: {fixed_orcid_count}.\
 inferred_orcid_count = authors_merged['inferred_orcid'].count()
 print(f'Number of author entries that had ORCID inferred: {inferred_orcid_count}.\n')
 
-authors_merged.to_csv(f'{outputs_dir}/{today}_final-authors-remediated.csv', index=False, encoding='utf-8-sig')
+authors_merged.to_csv(f'{outputs_dir}/{today}_{my_institution_filename-name}_final-authors-remediated.csv', index=False, encoding='utf-8-sig')
 
 ## Create single combined df at author-level but with indication of dataset-level fixes
 ### Prune out columns to keep it clean
@@ -631,7 +642,7 @@ review_cols = [col for col in combined.columns if col.startswith(tuple(review_te
 if review_cols:
     combined['to_review'] = combined[review_cols].any(axis=1)
 
-combined.to_csv(f'{outputs_dir}/{today}_final-combined-remediated.csv', index=False, encoding='utf-8-sig')
+combined.to_csv(f'{outputs_dir}/{today}_{my_institution_filename-name}_final-combined-remediated.csv', index=False, encoding='utf-8-sig')
 
 fixed_authors = combined["fixed"].sum()
 print(f'Number of authors who had a metadata field fixed: {fixed_authors}.\n')
