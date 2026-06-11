@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.3.1
-* *Released*: 2026/06/03
+* *Version*: 1.3.2
+* *Released*: 2026/06/11
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/06/03
+* *README last updated*: 2026/06/11
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -41,6 +41,8 @@ There are seven scripts in this workflow, but only two or three are "necessary" 
 | `funder-map-primary.csv` | Template funder map file, which is based on all unique funders for published datasets across all institutional dataverse in the Texas Data Repository as of June 2026. If you are at a non-TDR institution, you will want to delete it and have the script create a new map because there will be minimal overlap. |
 
 ## Outputs
+Most of the output files are intended for logging/archival purposes and are not intended to be directly edited, though they are all human-readable. **The most important output file, which does need to be edited if you want to use the script to batch-update metadata in TDR, is `{today}_{institution-name}_final-combined-remediated.csv`. This is the input file for the final step in the workflow and is intended to be manually augmented and then saved as `{today}_{institution-name}_final-combined-remediated_ANNOTATED.csv`.**
+
 ### `dataset-metadata-assessment.py`
 | File | Content |
 |------|---------|
@@ -54,14 +56,14 @@ There are seven scripts in this workflow, but only two or three are "necessary" 
 ### `ror-metadata-retrieval.py`
 | File | Content |
 |------|---------|
-| `affiliation-map_enriched.csv` | The affiliation map file with official names matched to ROR identifiers. This file should then be manually inspected for quality control, and then it can be saved as *affiliation-map-primary.csv* (overwrite it manually); you could alter the script to automatically overwrite as well.|
+| `affiliation-map_TEMP.csv` | The affiliation map file with official names matched to ROR identifiers. This file should then be manually inspected for quality control, and then it can be saved as *affiliation-map-primary.csv* (overwrite it manually); you could alter the script to automatically overwrite as well.|
 
 ### `dataset-metadata-remediation.py`
 | File | Content |
 |------|---------|
-| `{today}_final-datasets-remediated.csv` | The dataset-level dataframe with remediated titles and keywords in new columns and Boolean columns for whether a fix was implemented (to differentiate from the pre-existing 'flag' that indicates a potential remediation need). Previously collected/computed fields like flags for a possible missing related work are retained. |
-| `{today}_final-authors-remediated.csv` | The author-level dataframe with remediated ORCIDs, ROR identifiers, and author names in new columns and Boolean columns for whether a fix was implemented (to differentiate from the pre-existing 'flag' that indicates a potential remediation need). When author names were remediated, ORCID identifiers were remediated, or ORCID identifiers were inferred, the action/basis is also listed in another column. Previously collected/computed fields like flags for a possible missing ORCID are retained. |
-| `{today}_final-authors-remediated.csv` | The author-level dataframe with dataset-level metadata merged in. |
+| `{today}_{institution-name}_final-datasets-remediated.csv` | The dataset-level dataframe with remediated titles and keywords in new columns and Boolean columns for whether a fix was implemented (to differentiate from the pre-existing 'flag' that indicates a potential remediation need). Previously collected/computed fields like flags for a possible missing related work are retained. |
+| `{today}_{institution-name}_final-authors-remediated.csv` | The author-level dataframe with remediated ORCIDs, ROR identifiers, and author names in new columns and Boolean columns for whether a fix was implemented (to differentiate from the pre-existing 'flag' that indicates a potential remediation need). When author names were remediated, ORCID identifiers were remediated, or ORCID identifiers were inferred, the action/basis is also listed in another column. Previously collected/computed fields like flags for a possible missing ORCID are retained.  |
+| `{today}_{institution-name}_final-combined-remediated.csv` | The author-level dataframe with the dataset-level dataframe merged into it. This is the output that you want to focus on, as it is the one that `dataset-metadata-updater.py` will be working with. |
 
 ### `dataset-email-generator.py` 
 This script does not generate any output files.
@@ -75,7 +77,7 @@ This script does not generate any output files.
 | `{today}_metadata-changes-log.json` | Change log file with the same information as the CSV version. Each DOI is used as the root, with all changes to any component nested within it (i.e. single entry per DOI). |
 
 ## Requirements
-This workflow mostly makes use of modules in the Python standard library: *ast*, *csv*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script) and *rapidfuzz* (this may be deprecated in the future). The `utils.py` file with custom functions is also necessary. 
+This workflow mostly makes use of modules in the Python standard library: *ast*, *csv*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script) and *rapidfuzz* (this will be deprecated in the future). The `utils.py` file with custom functions is also necessary. 
 
 For the addition of ROR identifiers and the clean-up/addition of ORCID identifiers, the [external vocab plug-in for ORCID and ROR](https://github.com/gdcc/dataverse-external-vocab-support/blob/main/examples/authorIDandAffilationUsingORCIDandROR.md) will need to be activated for the Dataverse installation; this plug-in has its own dependencies. I have tested this process when the plug-in was installed but not activated, which seems to work fine, but I am not sure if it works the same if the plug-in is simply not installed. 
 
@@ -99,6 +101,7 @@ The script was developed in **Python 3.12** for **Dataverse 6.5**. I have not te
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Versions
+* **Version 1.3.2** is mainly to update the README but did update some scripts to match the filenames of outputs as listed in the README.
 * **Version 1.3.1** makes some minor edits to add manual rate limiting for large for-looped API calls and fixes a bug in the ORCID flagging. It also adds a Jupyter notebook with code for generating a few graphs for the TCDL annual meeting.
 * **Version 1.2.1** makes some minor syntax changes for stylistic consistency and saving JSON files. Some functionality for re-curating funder metadata is also added.
 * **Version 1.1.1** makes a minor bug fix for adding ORCIDs where none existed previously.
