@@ -1,48 +1,69 @@
 import csv
-import json
 import os
+import json
 import pandas as pd
 import re
 import requests
 import time
 from datetime import datetime
 from pathlib import Path
-from utils import load_most_recent_file
+from utils import env_bool, load_most_recent_file
 
 # ============================================
 #               WORKFLOW SET-UP
 # ============================================
 
-# Config file
+# Config file (static variables)
 with open('config.json', 'r') as file:
     config = json.load(file)
 
+my_institution = os.environ['MY_INSTITUTION']
+
 # Toggles
 ## Test environment (small sample size and other non-prod uses)
-test = config['TOGGLES']['test_environment']
+test = env_bool('TEST_ENVIRONMENT')
 ## Whether to retrieve from Native API
-retrieve = config['TOGGLES']['retrieve_json']
+retrieve = env_bool('RETRIEVE_JSON')
 # Number of datasets to fully process remediation
-test_remediate = config['TOGGLES']['test_remediation']
+test_remediate = env_bool('TEST_REMEDIATION')
 # Whether ROR external vocab plug-in is working
-ror_plugin = config['TOGGLES']['ror_plugin_enabled']
+ror_plugin = env_bool('ROR_PLUGIN_ENABLED')
 # Toggles for which attributes to re-curate
-recurate_orcid = config['RECURATION']['orcid']
-recurate_ror = config['RECURATION']['ror']
-recurate_names = config['RECURATION']['names']
-recurate_punctuation = config['RECURATION']['punctuation']
-recurate_keywords = config['RECURATION']['keywords']
-recurate_works = config['RECURATION']['works']
-recurate_licenses = config['RECURATION']['licenses']
+recurate_orcid = env_bool('RECURATION_ORCID')
+recurate_ror = env_bool('RECURATION_ROR')
+recurate_names = env_bool('RECURATION_NAMES')
+recurate_punctuation = env_bool('RECURATION_PUNCTUATION')
+recurate_keywords = env_bool('RECURATION_KEYWORDS')
+recurate_works = env_bool('RECURATION_WORKS')
+recurate_licenses = env_bool('RECURATION_LICENSES')
+recurate_funding = env_bool('RECURATION_FUNDING')
 
 # Load in data file
 script_dir = os.getcwd()
-inputs_dir = os.path.join(script_dir, 'outputs')
+if test:
+    inputs_dir = os.path.join(script_dir, 'test/outputs')
+else:
+    inputs_dir = os.path.join(script_dir, 'outputs')
 
-# Load master file of remediations
+# Load primary file of remediations
 pattern = '_final-combined-remediated_ANNOTATED.csv'
 df = load_most_recent_file(inputs_dir, pattern)
-df = df.sort_values(by=['parent_dataverse', 'dataverse'])
+# df = df.sort_values(by=['parent_dataverse', 'dataverse'])
+
+# Load funder ROR map
+funder_map_path = os.path.join(script_dir, 'funder-map-primary.csv')
+funder_lookup = {}
+if os.path.exists(funder_map_path):
+    funder_df = pd.read_csv(funder_map_path)
+    for _, row in funder_df.iterrows():
+        agency = row.get('grant_agencies')
+        ror    = row.get('ror')
+        name   = row.get('official_name')
+        if pd.notna(agency) and pd.notna(ror) and str(ror).strip() != '':
+            funder_lookup[str(agency).strip()] = (str(ror).strip(), str(name).strip() if pd.notna(name) else None)
+    print(f'Loaded funder map: {len(funder_lookup)} active matches.\n')
+else:
+    print('No funder map found — funder ROR fixes will be skipped.\n')
 
 # Need to update Boolean 'fixed' columns to handle manual edits
 ## ORCID
@@ -57,13 +78,12 @@ fixed_df = df[df['fixed']]
 df_dois = fixed_df.drop_duplicates(subset=['doi'])
 ## Various ways to restrict the df so you can test on prod
 if test_remediate:
+    ### Funders are rare, need to ensure test catches some
+    if recurate_funding:
+        df_dois = df_dois.sort_values(by='fix_funder_ror', ascending=False)
     ### Just take the first X entries
     df_dois = df_dois.head(10)
     df = df[df['doi'].isin(df_dois['doi'])]
-    # ### Target specific DOIs
-    # target_dois = ['10.18738/T8/NEYRHY', '10.18738/T8/NMQA1N', '10.18738/T8/UKDP9P']
-    # df_dois = df_dois[df_dois['doi'].isin(target_dois)]
-    # df = df[df['doi'].isin(target_dois)]
 
 # Timestamp to calculate run time
 start_time = datetime.now() 
@@ -139,7 +159,7 @@ if retrieve:
     final_timeouts = []
 
     headers_tdr = {
-        'X-Dataverse-key': config['KEYS']['dataverse_token']
+        'X-Dataverse-key': os.environ['DATAVERSE_TOKEN']
     }
 
     url_tdr_native = 'https://dataverse.tdl.org/api/datasets/'
@@ -405,10 +425,10 @@ def apply_author_fixes(author, row, doi, logger):
             field_name='authorAffiliation',
             original_value=original_affiliation,
             new_value=f"{row['official_name']} ({row['ror']})",
-            change_type='added ROR'
+            change_type='added author ROR'
         )
         
-        print(f'  ✓ Added ROR: {row['official_name']} ({row['ror']})')
+        print(f'  ✓ Added author ROR: {row['official_name']} ({row['ror']})')
 
 # ----- Pushes updates into new JSON ----- #    
 def update_author_in_json(data, row, doi, logger):
@@ -532,6 +552,85 @@ def fix_title(data, row, doi, logger):
         print(f' ✗ Error fixing title: {e}')
         return False
 
+# ----- Adds ROR to funder ----- #    
+def fix_funder_ror(data, row, doi, logger):
+    """Add ROR value + expandedvalue to grantNumber entries using the funder_lookup map."""
+    if not (row.get('fix_funder_ror') == True):
+        return False
+    try:
+        citation_fields = data['data']['latestVersion']['metadataBlocks']['citation']['fields']
+        for field in citation_fields:
+            if field.get('typeName') == 'grantNumber':
+                changed_pairs = []
+                for grant in field.get('value', []):
+                    agency_field = grant.get('grantNumberAgency', {})
+                    # Only fix entries that don't already have an expandedvalue
+                    if agency_field.get('expandedvalue'):
+                        continue
+                    agency_value = agency_field.get('value', '').strip()
+                    if not agency_value:
+                        continue
+                    match = funder_lookup.get(agency_value)
+                    if not match:
+                        continue
+                    matched_ror, matched_name = match
+                    agency_field['value'] = matched_ror
+                    agency_field['expandedvalue'] = {
+                        'scheme':   'http://www.grid.ac/ontology/',
+                        'termName': matched_name or agency_value,
+                        '@type':    'https://schema.org/Organization'
+                    }
+                    changed_pairs.append((agency_value, matched_ror))
+                    logger.log_change(
+                        doi=doi,
+                        author_original_name='DATASET_LEVEL',
+                        field_name='funder',
+                        original_value=agency_value,
+                        new_value=matched_ror,
+                        change_type='added funder ROR'
+                    )
+
+                if changed_pairs:
+                    for orig, ror in changed_pairs:
+                        print(f'  ✓ Funder ROR added: {orig} → {ror}')
+                    return True
+        return False
+    except Exception as e:
+        print(f'  ✗ Error fixing funder ROR: {e}')
+        return False
+
+# ----- Adds language field if missing ----- #
+def fix_language(data, doi, logger):
+    try:
+        citation_fields = data['data']['latestVersion']['metadataBlocks']['citation']['fields']
+
+        for field in citation_fields:
+            if field.get('typeName') == 'language':
+                return False  # already present, nothing to do
+
+        citation_fields.append({
+            'typeName': 'language',
+            'multiple': True,
+            'typeClass': 'controlledVocabulary',
+            'value': ['English']
+        })
+
+        logger.log_change(
+            doi=doi,
+            author_original_name='DATASET_LEVEL',
+            field_name='language',
+            original_value=None,
+            new_value='English',
+            change_type='added missing language field'
+        )
+
+        print('  ✓ Added language field: English')
+        return True
+
+    except Exception as e:
+        print(f'  ✗ Error adding language field: {e}')
+        return False
+
 # ----- Overarching function ----- #
 def update_all_author_metadata(df, json_folder, output_folder):
     print('\n' + '='*60)
@@ -587,7 +686,14 @@ def update_all_author_metadata(df, json_folder, output_folder):
         if recurate_punctuation:
             if fix_title(data, dataset_row, doi, logger):
                 changes_made = True
-        
+
+        if recurate_funding:
+            if fix_funder_ror(data, dataset_row, doi, logger):
+                changes_made = True
+
+        if my_institution == 'UT Austin' and fix_language(data, doi, logger):
+            changes_made = True
+
         # ============================================
         # AUTHOR-LEVEL FIXES (for each author)
         # ============================================
@@ -665,6 +771,7 @@ print('-'*60 + '\n')
 
 # dir_path = Path(modified_json_dir)
 
+# failed_uploads = []
 # for filename in dir_path.iterdir():
 #     if filename.is_file():
 #         doi_temp = filename.stem.split("modified-")[1].split("-dataset-metadata")[0]
@@ -673,7 +780,7 @@ print('-'*60 + '\n')
 
 #         with open(filename, 'r', encoding='utf-8') as f:
 #             full_data = json.load(f)
-        
+
 #         dataset_info = full_data['data']
 #         # Check for latestVersion or datasetVersion (varies depending on whether it has been versioned or not)
 #         if 'latestVersion' in dataset_info:
@@ -685,14 +792,12 @@ print('-'*60 + '\n')
 #         payload = {k: v for k, v in dataset_version.items() if k != 'files'}
 
 #         # Create draft
-#         ## Catch any failures
-#         failed_uploads = []
 #         try:
 #             update_url = f'{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}'
 #             response = requests.put(update_url, headers=headers_tdr, json=payload)
 
 #             if response.status_code == 200:
-#                 print('✓ Dataset metadata updated versioned.\n')
+#                 print('✓ Dataset metadata updated.\n')
 #             else:
 #                 error_msg = f'Status code: {response.status_code}. {response.text}'
 #                 print(f'✗ Failed to update metadata. {error_msg}\n')
@@ -711,6 +816,12 @@ print('-'*60 + '\n')
             
 #             if needs_review or is_draft:
 #                 print('⚠ Dataset needs further review or was in draft status.\n')
+
+#             # ------------------------------------------------------------------------------------------------ #
+#             # WARNING: uncommenting the else block below will AUTO-PUBLISH datasets to production.
+#             # Only do this after verifying modified JSONs are correct and no datasets are flagged for review.
+#             # ------------------------------------------------------------------------------------------------ #
+
 #             # else:
 #             #     # Publish the dataset
 #             #     publish_url = f'{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor'

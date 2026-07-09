@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-from utils import load_most_recent_file, load_nth_most_recent_file
+from utils import env_bool, load_most_recent_file, load_nth_most_recent_file
 
 # ============================================
 #               WORKFLOW SET-UP
@@ -20,7 +20,7 @@ with open('config.json', 'r') as file:
     config = json.load(file)
 
 # Test environment (incomplete run, faster to complete)
-test = config['TOGGLES']['test_environment']
+test = env_bool('TEST_ENVIRONMENT')
 
 # Get directories
 script_dir = os.getcwd()

@@ -5,7 +5,7 @@ import pandas as pd
 import requests
 import time
 from datetime import datetime
-from utils import extract_max_version, is_valid_orcid, is_valid_ror, retrieve_all_institutions
+from utils import env_bool, extract_max_version, is_valid_orcid, is_valid_ror, retrieve_all_institutions
 
 # ============================================
 #               WORKFLOW SET-UP
@@ -17,38 +17,38 @@ with open('config.json', 'r') as file:
 
 # Toggles
 ## Test environment (incomplete run, faster to complete)
-test = config['TOGGLES']['test_environment']
+test = env_bool('TEST_ENVIRONMENT')
 ## Restrict to your/one institution in TDR (True to restrict to your institution)
-only_my_institution = config['TOGGLES']['only_my_institution'] 
+only_my_institution = env_bool('ONLY_MY_INSTITUTION')
 ## Split output files by institution (IN DEVELOPMENT)
-split_institution_output = config['TOGGLES']['split_institution_output']
+split_institution_output = env_bool('SPLIT_INSTITUTION_OUTPUT')
 ## Whether ROR external vocab plug-in is working
-ror_plugin = config['TOGGLES']['ror_plugin_enabled']
+ror_plugin = env_bool('ROR_PLUGIN_ENABLED')
 
 # Timestamp to calculate run time
-start_time = datetime.now() 
+start_time = datetime.now()
 # Current date for filenames
-today = datetime.now().strftime('%Y%m%d') 
+today = datetime.now().strftime('%Y%m%d')
 
 # Dynamic variables for which attributes to re-curate
-recurate_funding = config['RECURATION']['funding']
-recurate_keywords = config['RECURATION']['keywords']
-recurate_licenses = config['RECURATION']['licenses']
-recurate_names = config['RECURATION']['names']
-recurate_orcid = config['RECURATION']['orcid']
-recurate_punctuation = config['RECURATION']['punctuation']
-recurate_ror = config['RECURATION']['ror']
-recurate_works = config['RECURATION']['works']
+recurate_funding = env_bool('RECURATION_FUNDING')
+recurate_keywords = env_bool('RECURATION_KEYWORDS')
+recurate_licenses = env_bool('RECURATION_LICENSES')
+recurate_names = env_bool('RECURATION_NAMES')
+recurate_orcid = env_bool('RECURATION_ORCID')
+recurate_punctuation = env_bool('RECURATION_PUNCTUATION')
+recurate_ror = env_bool('RECURATION_ROR')
+recurate_works = env_bool('RECURATION_WORKS')
 
 # Filename version of your institution's name
-my_institution_filename = config['INSTITUTION']['filename']
+my_institution_filename = os.environ['INSTITUTION_FILENAME']
 # Condition based on 'only_my_institution' toggle
 if only_my_institution:
     institution_filename = my_institution_filename
 else:
     institution_filename = 'all-institutions'
 # Short-hand version of your institution's name
-my_institution_short_name = config['INSTITUTION']['myInstitution']
+my_institution_short_name = os.environ['MY_INSTITUTION']
 
 print(f'String to add to filenames: {my_institution_filename}.\n')
 print(f'Short hand version of institution name: {my_institution_short_name}.\n')
@@ -136,7 +136,7 @@ page_start_dataset = config['VARIABLES']['PAGE_STARTS']['dataverse']
 page_increment_dataset = config['VARIABLES']['PAGE_INCREMENTS']['dataverse']
 
 headers_tdr = {
-    'X-Dataverse-key': config['KEYS']['dataverse_token']
+    'X-Dataverse-key': os.environ['DATAVERSE_TOKEN']
 }
 
 params_tdr_ut_austin = {
@@ -152,6 +152,15 @@ params_tdr_baylor = {
     'q': query,
     'fq': status,
     'subtree': 'baylor',
+    'type': 'dataset',
+    'start': page_start_dataset,
+    'page': page_increment_dataset,
+    'per_page': page_limit_dataset
+}
+params_tdr_lamar = {
+    'q': query,
+    'fq': status,
+    'subtree': 'lamar',
     'type': 'dataset',
     'start': page_start_dataset,
     'page': page_increment_dataset,
@@ -269,6 +278,7 @@ params_tdr_twu = {
 all_params_datasets = {
         'UT Austin': params_tdr_ut_austin,
         'Baylor': params_tdr_baylor,
+        'Lamar': params_tdr_lamar,
         'SMU': params_tdr_smu,
         'TAMU': params_tdr_tamu,
         'Texas State': params_tdr_txst,
@@ -280,23 +290,15 @@ all_params_datasets = {
         'UT San Antonio Health': params_tdr_utsah,
         'UT Southwestern Medical': params_tdr_utswm,
         'UT Arlington': params_tdr_uta,
-        "Texas Women's University": params_tdr_twu
+        "Texas Woman's University": params_tdr_twu
     }
 
-tamu_combined_params = {
-        'TAMU': params_tdr_tamu,
-        'TAMU Galveston': params_tdr_tamug,
-        'TAMU International': params_tdr_tamui
-}
 
 #substitute for your institution
 if only_my_institution:
-    if my_institution_short_name == 'TAMU':
-        params_list = tamu_combined_params
-    else:
-        params_list = {
-            my_institution_short_name: all_params_datasets[my_institution_short_name]
-        }
+    params_list = {
+        my_institution_short_name: all_params_datasets[my_institution_short_name]
+    }
 else:
     params_list = all_params_datasets
 
@@ -370,6 +372,15 @@ params_tdr_ut_austin = {
 params_tdr_baylor = {
     'q': query,
     'subtree': 'baylor',
+    'type': 'dataverse',
+    'start': page_start_dataverse,
+    'page': page_increment_dataverse,
+    'per_page': page_limit_dataverse
+}
+
+params_tdr_lamar = {
+    'q': query,
+    'subtree': 'lamar',
     'type': 'dataverse',
     'start': page_start_dataverse,
     'page': page_increment_dataverse,
@@ -484,6 +495,7 @@ params_tdr_twu = {
 all_params_dataverses = {
         'UT Austin': params_tdr_ut_austin,
         'Baylor': params_tdr_baylor,
+        'Lamar': params_tdr_lamar,
         'SMU': params_tdr_smu,
         'TAMU': params_tdr_tamu,
         'Texas State': params_tdr_txst,
@@ -498,19 +510,10 @@ all_params_dataverses = {
         "Texas Women's University": params_tdr_twu
     }
 
-tamu_combined_params = {
-        'TAMU': params_tdr_tamu,
-        'TAMU Galveston': params_tdr_tamug,
-        'TAMU International': params_tdr_tamui
-}
-
 if only_my_institution:
-    if my_institution_short_name == 'TAMU':
-        params_list = tamu_combined_params
-    else:
-        params_list = {
-            my_institution_short_name: all_params_dataverses[my_institution_short_name]
-        }
+    params_list = {
+        my_institution_short_name: all_params_dataverses[my_institution_short_name]
+    }
 else:
     params_list = all_params_dataverses
 
@@ -644,6 +647,7 @@ for item in data_tdr_native['datasets']:
     contacts = 'None listed'
     contact_emails = 'None listed'
     grant_agencies = None
+    grant_rors = None
     grant_numbers = None
     citations = None
     relations = None
@@ -681,16 +685,25 @@ for item in data_tdr_native['datasets']:
             depositor = field.get('value', None)
         if field['typeName'] == 'grantNumber':
             grant_agencies = []
+            grant_rors = []
             grant_numbers = []
             for grant in field.get('value', []):
-                agency = grant.get('grantNumberAgency', {}).get('value', None)
+                agency_field = grant.get('grantNumberAgency', {})
+                agency_value = agency_field.get('value', None)
+                agency_expanded = agency_field.get('expandedvalue', {})
+                agency_name = agency_expanded.get('termName', None) if agency_expanded else None
                 number = grant.get('grantNumberValue', {}).get('value', None)
-                if agency:
-                    grant_agencies.append(agency)
+                if agency_name:
+                    grant_agencies.append(agency_name)
+                    grant_rors.append(agency_value)
+                elif agency_value:
+                    grant_agencies.append(agency_value)
+                    grant_rors.append(None)
                 if number:
                     grant_numbers.append(number)
             grant_agencies = '; '.join(grant_agencies)
-            grant_numbers = '; '.join(grant_numbers) 
+            grant_rors = '; '.join(r for r in grant_rors if r is not None)
+            grant_numbers = '; '.join(grant_numbers)
         if field['typeName'] == 'publication':
             citations = []
             relations = []
@@ -751,6 +764,7 @@ for item in data_tdr_native['datasets']:
         'license': licenseName,
         'keywords_vocab': keywords_vocab,
         'grant_agencies': grant_agencies,
+        'grant_rors': grant_rors,
         'grant_numbers': grant_numbers,
         'related_works_citations': citations,
         'related_works_dois': dois,
@@ -811,7 +825,7 @@ df_select_concatenated = pd.merge(df_datasets_dataverses, df_data_tdr_native_sel
 if recurate_punctuation:
     # If title ends in period
     ## Exempts flag if there are certain words involving periods at the end
-    exempt_words = ['U.S.', 'U.S.A.', ' al.']
+    exempt_words = ['U.S.', 'U.S.A.', 'U.K.', ' al.']
     df_select_concatenated['flag_title_period'] = (df_select_concatenated['dataset_title'].str.endswith('.') & ~df_select_concatenated['dataset_title'].str.endswith('|'.join(exempt_words)))
     
     # If extra space in front or behind title
@@ -843,7 +857,15 @@ if recurate_keywords:
 # Funding presence/format
 # ============================================
 if recurate_funding:
+    # If no funding organization is present
     df_select_concatenated['flag_funding'] = df_select_concatenated['grant_agencies'].isna()
+    
+    # If there are more funding orgs than funder org RORs
+    df_select_concatenated['flag_funder_ror'] = df_select_concatenated.apply(
+        lambda row: len(row['grant_agencies'].split('; ')) != len([r for r in row['grant_rors'].split('; ') if r])
+        if pd.notna(row['grant_agencies']) and row['grant_agencies'] != '' else False,
+        axis=1
+    )
 
 # Generates unique funders regardless
 df_funders = df_select_concatenated[['grant_agencies']].copy()
@@ -883,7 +905,7 @@ if flags_cols:
     df_select_concatenated['flagged_any'] = df_select_concatenated[flags_cols].any(axis=1)
     df_select_concatenated['flags'] = df_select_concatenated[flags_cols].sum(axis=1)
 
-base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
+base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_rors', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
 
 # Resetting list of columns to include 'flagged_any' and 'flags'
 flags_cols = [col for col in df_select_concatenated.columns if col.startswith('flag')]
@@ -1038,7 +1060,7 @@ df_combined_pruned.to_csv(f'outputs/{today}_{institution_filename}_all-datasets-
 
 df_all_affiliations_dedup = df_author_entries.drop_duplicates(subset=['author_affiliation'], keep='first')
 df_all_affiliations_dedup = df_all_affiliations_dedup.rename(columns={'author_affiliation': 'affiliation'})
-df_all_affiliations_dedup=df_all_affiliations_dedup[['affiliation']]
+df_all_affiliations_dedup = df_all_affiliations_dedup[['affiliation']]
 
 # ============================================
 #           ROR-AFFILIATION MAP

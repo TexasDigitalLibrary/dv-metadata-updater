@@ -1,0 +1,19 @@
+[project]
+name = "dv-metadata-updater"
+version = "0.1.0"
+description = "Dataverse metadata assessment, remediation, and update tooling"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.9.2",
+    "pandas>=2.2.2",
+    "python-dotenv>=1.0.1",
+    "rapidfuzz>=3.14.3",
+    "requests>=2.32.3",
+    "pywin32>=311; sys_platform == 'win32'",
+]
+
+[tool.uv]
+link-mode = "copy"
+
+[dependency-groups]
+dev = []

@@ -1,10 +1,9 @@
 import json
 import os
 import requests
+from dotenv import load_dotenv
 
-# Config file
-with open('config.json', 'r') as file:
-    config = json.load(file)
+load_dotenv()
 
 script_dir = os.getcwd()
 # This script assumes you are using test data
@@ -15,7 +14,7 @@ SERVER_URL = 'https://dataverse-training.tdl.org'
 ## Specify the DOI of the dataset to be updated
 DOI = 'doi:10.33536/FK2/PJ1JMT'
 headers_tdr = {
-    'X-Dataverse-key': config['KEYS']['sandbox_token'],
+    'X-Dataverse-key': os.environ['SANDBOX_TOKEN'],
     'Content-Type': 'application/json'
 }
 
