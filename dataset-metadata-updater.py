@@ -82,7 +82,7 @@ if test_remediate:
     if recurate_funding:
         df_dois = df_dois.sort_values(by='fix_funder_ror', ascending=False)
     ### Just take the first X entries
-    df_dois = df_dois.head(10)
+    df_dois = df_dois.head(3)
     df = df[df['doi'].isin(df_dois['doi'])]
 
 # Timestamp to calculate run time
@@ -763,89 +763,90 @@ print('-'*60 + '\n')
 #     UPDATE AUTHOR METADATA THROUGH API
 # ============================================
 
-# server_url = 'https://dataverse.tdl.org'
-# headers_tdr = {
-#     'X-Dataverse-key': config['KEYS']['dataverse_token'],
-#     'Content-Type': 'application/json'
-# }
+server_url = 'https://dataverse.tdl.org'
+headers_tdr = {
+    'X-Dataverse-key': os.environ['DATAVERSE_TOKEN'],
+    'Content-Type': 'application/json'
+}
 
-# dir_path = Path(modified_json_dir)
+dir_path = Path(modified_json_dir)
 
-# failed_uploads = []
-# for filename in dir_path.iterdir():
-#     if filename.is_file():
-#         doi_temp = filename.stem.split("modified-")[1].split("-dataset-metadata")[0]
-#         doi = f"doi:{doi_temp.replace('_', '/')}"
-#         print(f'Updating {doi}\n')
+# Restrict uploads to DOIs processed this run
+current_dois = set(df_dois['doi'].tolist())
 
-#         with open(filename, 'r', encoding='utf-8') as f:
-#             full_data = json.load(f)
+failed_uploads = []
+for filename in dir_path.iterdir():
+    if not filename.is_file():
+        continue
+    doi_temp = filename.stem.split("modified-")[1].split("-dataset-metadata")[0]
+    doi_without_prefix = doi_temp.replace('_', '/')
+    if doi_without_prefix not in current_dois:
+        print(f'Skipping {doi_without_prefix} (not in current run)\n')
+        continue
+    doi = f"doi:{doi_without_prefix}"
+    print(f'Updating {doi}\n')
 
-#         dataset_info = full_data['data']
-#         # Check for latestVersion or datasetVersion (varies depending on whether it has been versioned or not)
-#         if 'latestVersion' in dataset_info:
-#             dataset_version = dataset_info['latestVersion']
-#         else:
-#             dataset_version = dataset_info['datasetVersion']
+    with open(filename, 'r', encoding='utf-8') as f:
+        full_data = json.load(f)
 
-#         # Create payload with EVERYTHING except 'files' (https://guides.dataverse.org/en/latest/api/native-api.html#update-metadata-for-a-dataset)
-#         payload = {k: v for k, v in dataset_version.items() if k != 'files'}
+    dataset_info = full_data['data']
+    # Check for latestVersion or datasetVersion (varies depending on whether it has been versioned or not)
+    if 'latestVersion' in dataset_info:
+        dataset_version = dataset_info['latestVersion']
+    else:
+        dataset_version = dataset_info['datasetVersion']
 
-#         # Create draft
-#         try:
-#             update_url = f'{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}'
-#             response = requests.put(update_url, headers=headers_tdr, json=payload)
+    # Create payload with EVERYTHING except 'files' (https://guides.dataverse.org/en/latest/api/native-api.html#update-metadata-for-a-dataset)
+    payload = {k: v for k, v in dataset_version.items() if k != 'files'}
 
-#             if response.status_code == 200:
-#                 print('✓ Dataset metadata updated.\n')
-#             else:
-#                 error_msg = f'Status code: {response.status_code}. {response.text}'
-#                 print(f'✗ Failed to update metadata. {error_msg}\n')
-#                 failed_uploads.append((doi, error_msg))
+    # Create draft
+    try:
+        update_url = f'{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}'
+        response = requests.put(update_url, headers=headers_tdr, json=payload)
 
-#             doi_without_prefix = doi.replace('doi:', '')
-#             filtered_row = df_dois[df_dois['doi'] == doi_without_prefix]
-#             if len(filtered_row) == 0:
-#                 print(f"Warning: DOI '{doi_without_prefix}' not found in DataFrame")
-#                 # Handle missing DOI - options:
-#                 needs_review = None
-#                 is_draft = None
-#             else:
-#                 needs_review = filtered_row['to_review'].iloc[0]
-#                 is_draft = filtered_row['current_status'].iloc[0] == 'DRAFT'
-            
-#             if needs_review or is_draft:
-#                 print('⚠ Dataset needs further review or was in draft status.\n')
+        if response.status_code == 200:
+            print('✓ Dataset metadata updated.\n')
+        else:
+            error_msg = f'Status code: {response.status_code}. {response.text}'
+            print(f'✗ Failed to update metadata. {error_msg}\n')
+            failed_uploads.append((doi, error_msg))
 
-#             # ------------------------------------------------------------------------------------------------ #
-#             # WARNING: uncommenting the else block below will AUTO-PUBLISH datasets to production.
-#             # Only do this after verifying modified JSONs are correct and no datasets are flagged for review.
-#             # ------------------------------------------------------------------------------------------------ #
+        filtered_row = df_dois[df_dois['doi'] == doi_without_prefix]
+        needs_review = filtered_row['to_review'].iloc[0]
+        is_draft = filtered_row['current_status'].iloc[0] == 'DRAFT'
 
-#             # else:
-#             #     # Publish the dataset
-#             #     publish_url = f'{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor'
-#             #     response = requests.post(publish_url, headers=headers_tdr)
+        if needs_review or is_draft:
+            print('⚠ Dataset needs further review or was in draft status.\n')
 
-#             #     if response.status_code == 200:
-#             #         print('✓ Dataset published successfully.\n')
-#             #     else:
-#             #         print(f'✗ Failed to publish dataset. Status code: {response.status_code}')
-#             #         print(response.text)
-#         except requests.exceptions.RequestException as e:
-#             error_msg = str(e)
-#             print(f'Request failed for {doi}: {error_msg}')
-#             failed_uploads.append((doi, error_msg))  
+            # ------------------------------------------------------------------------------------------------ #
+            # WARNING: uncommenting the else block below will AUTO-PUBLISH datasets to production.
+            # Only do this after verifying modified JSONs are correct and no datasets are flagged for review.
+            # ------------------------------------------------------------------------------------------------ #
 
-# # Print failed uploads
-# print(failed_uploads)
-# list_length = len(failed_uploads)
-# print(f'The final number of failed uploads is: {list_length}.\n')
-# ## Saving failed uploads
-# with open(f'{logs_dir}/{today}_failed-uploads.csv', 'w', newline='', encoding='utf-8') as f:
-#     writer = csv.writer(f)
-#     writer.writerow(['DOI', 'Error Message'])
-#     writer.writerows(failed_uploads)
+        # else:
+        #     # Publish the dataset
+        #     publish_url = f'{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor'
+        #     response = requests.post(publish_url, headers=headers_tdr)
+
+        #     if response.status_code == 200:
+        #         print('✓ Dataset published successfully.\n')
+        #     else:
+        #         print(f'✗ Failed to publish dataset. Status code: {response.status_code}')
+        #         print(response.text)
+    except requests.exceptions.RequestException as e:
+        error_msg = str(e)
+        print(f'Request failed for {doi}: {error_msg}')
+        failed_uploads.append((doi, error_msg))
+
+# Print failed uploads
+print(failed_uploads)
+list_length = len(failed_uploads)
+print(f'The final number of failed uploads is: {list_length}.\n')
+## Saving failed uploads
+with open(f'{logs_dir}/{today}_failed-uploads.csv', 'w', newline='', encoding='utf-8') as f:
+    writer = csv.writer(f)
+    writer.writerow(['DOI', 'Error Message'])
+    writer.writerows(failed_uploads)
 
 # Calculate total runtime
 end_time = datetime.now()
