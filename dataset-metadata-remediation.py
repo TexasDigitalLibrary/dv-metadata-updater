@@ -708,7 +708,7 @@ authors_merged.to_csv(f'{outputs_dir}/{today}_{my_institution_filename}_final-au
 
 ## Create single combined df at author-level but with indication of dataset-level fixes
 ### Prune out columns to keep it clean
-columns_to_drop = ['current_status_x', 'author_count', 'flagged_any', 'flags', 'institution', 'dataset_id', 'publication_date', 'version_id', 'total_version', 'dataverse', 'parent_dataverse', 'dataset_title', 'keywords', 'description', 'dataset_depositor', 'dataset_contact',	'dataset_email', 'license',	'related_works_citations', 'related_works_dois', 'related_works_urls', 'author_name_temp', 'author_name_remediated_standardized', 'match_score']
+columns_to_drop = ['current_status_x', 'author_count', 'flagged_any', 'institution', 'dataset_id', 'version_id', 'total_version','parent_dataverse', 'keywords', 'description', 'license',	'related_works_citations', 'related_works_dois', 'related_works_urls', 'author_name_temp', 'author_name_remediated_standardized', 'match_score']
 authors_merged_pruned = authors_merged.drop(columns_to_drop, axis=1)
 # Explicitly keep only doi, current_status, dataset-level fix/remediated cols, and review flag cols
 # This avoids duplicate columns in the merge caused by overlap with authors_merged_pruned
