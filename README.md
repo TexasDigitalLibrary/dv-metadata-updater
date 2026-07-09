@@ -1,23 +1,62 @@
 # README
 
 ## Metadata
-* *Version*: 1.3.2
-* *Released*: 2026/06/11
+* *Version*: 1.4.0
+* *Released*: 2026/07/09
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/06/11
+* *README last updated*: 2026/07/09
 
 ## Table of Contents
 1. [Purpose](#purpose)
-2. [Contents](#contents)
-3. [Outputs](#outputs)
-4. [Requirements](#requirements)
+2. [Setup](#setup)
+3. [Contents](#contents)
+4. [Outputs](#outputs)
 5. [Development](#development)
-6. [Versions](#versions)
+6. [Version notes](#version--notes)
 
 ## Purpose
 This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the [Texas Data Repository](https://dataverse.tdl.org/), a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). Standardizing funders against ROR is in development. It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review. Any of the automated components can also be done or enhanced manually.
+
+## Setup
+This project uses [uv](https://docs.astral.sh/uv/) for package management. To get started:
+
+1. Install uv following the [official instructions](https://docs.astral.sh/uv/getting-started/installation/).
+2. Clone the repository and navigate to the repo root in a terminal.
+3. Run `uv sync` to create a virtual environment and install all dependencies.
+4. Open the repo root folder in your IDE (e.g., **File → Open Folder** in VS Code) to ensure the environment is detected automatically (alternatively use the terminal to change directory).
+
+### Requirements
+This workflow mostly makes use of modules in the Python standard library: *ast*, *csv*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script) and *rapidfuzz*. The `utils.py` file with custom functions is also necessary. 
+
+For the addition of ROR identifiers and the clean-up/addition of ORCID identifiers, the [external vocab plug-in for ORCID and ROR](https://github.com/gdcc/dataverse-external-vocab-support/blob/main/examples/authorIDandAffilationUsingORCIDandROR.md) will need to be activated for the Dataverse installation.
+
+`dataset-email-generator.py` is only designed for a Windows OS and Microsoft Outlook and requires you to have the desktop application installed and logged into; I am not aware of any requirements for a specific Outlook version, operating system, or institutional configuration of Outlook but have not tested this.
+
+The codebase was developed in **Python 3.12** for **Dataverse 6.5**. It has been tested on Dataverse 6.10 without issue.
+
+### env file
+The env file contains credentials and other parameters that are likely to need to be modified by another user, including the toggles that control which fields are being assessed, the test environment, and several other aspects. A `.env.example` file is provided; this should be populated and then renamed to `.env`.
+
+| File | Content |
+|------|---------|
+| `KEYS` | Contains the API token for the production installation and the API token for the sandbox installation.|
+| `USER` | Contains user information that will populate fields in email drafts; only necessary if you are running `dataset-email-generator.py`. *Title* appears before your name (e.g., 'Dr.'); *Credentials* appears after your name (e.g., Adam Smith, MLIS).|
+| `INSTITUTION`| Contains two fields, one for filename (can be whatever you want) and one for the operational institutional name (reference the ROR map in the `config.json` file for the controlled vocabulary). |
+| `TOGGLES`| Contains seven toggles that control different parts of the workflow. `test_remediate`: only for `dataset-metadata-remediation.py`, 'true' to create a small sample size for testing the actual re-curation process. `test_email`: only for `dataset-email-generator.py`, 'true' to use the small test sample size for testing email design/drafting. `draft_email`: only for `dataset-email-generator.py`, 'true' to create email drafts in an Outlook inbox (if false, it will just run the pre-processing steps). `json_retrieval`: only for `dataset-metadata-updater.py`, 'true' to retrieve the current metadata for datasets. `ror_plugin_enabled`: (ideally) a temporary toggle for the edge case scenario in which a dataverse previously had the ROR plug-in enabled, disabled it, and intends to re-enable it. 'true' if plug-in is active. `only_my_institution`: only for TDR institutions, 'true' to retrieve metadata for only one institution versus all institutions. `split_institution_output`: only for TDR institutions, 'true' to split outputs by institution when all institutions were queried.|
+| `RECURATION`| Contains seven toggles that control whether to flag and remediate different metadata attributes; in order: ORCID presence/absence, ROR presence/absence, author name formatting, keyword formatting, title punctuation (extra spaces or terminal periods), funders, related works, and license. The first five are remediations (the workflow both flags missing/malformatted entries and fixes them), the sixth flags missing funding and uses ROR to standardize existing funders, and the last two are flag-only (the workflow flags something for manual review). 'true' for all to enable a flag/remediation. These should not be changed across a full run (e.g., do not change between running the first and second script).|
+
+
+### config file
+The config file contains semi-static to static parameters that are unlikely to need to be modified by another user, including API query parameters and a map of all TDR institutions to their ROR identifier. The one set of fields that would be institution-specific are "EXCLUDED" and "PEOPLE_CONDITIONAL" - this was designed specifically for UT Austin due to the nature of 'collections as data' deposits and likely is irrelevant for other institutions. Leaving it unmodified will not affect other institutions running the script. 
+
+| File | Content |
+|------|---------|
+| `INSTITUTION` | Contains static parameters for institutions; currently only the map of institutional names to ROR identifiers. |
+| `EXCLUDED` | Contains a custom list of people names for systematically excluding any datasets with these names in the depositor or contact fields from any re-curation. Can be blank.|
+| `PEOPLE_CONDITIONAL` | Similar to the above field, but re-curation is conditional on both the occurrence of these names in either field and other metadata fields. Can be blank. |
+| `VARIABLES`| Contains parameters for the Dataverse API. These likely do not be adjusted (and page start and page increment should not be changed). The only ones that may warrant changing are `dataverse_test`, which controls the size of the retrieval for a test run.|
 
 ## Contents
 There are seven scripts in this workflow, but only two or three are "necessary" depending on how you want to adopt it. They are separated in part because there are a few manual steps involved in this process and in part because not all of them are necessary depending on a local use.
@@ -27,7 +66,7 @@ There are seven scripts in this workflow, but only two or three are "necessary" 
 | `dataset-metadata-assessment.py` | Retrieves metadata through the Dataverse API, separates it into a dataset-level and an author-level dataframe, and creates flags based on the presence/absence and structure of target fields (e.g., no ROR ID, malformed ORCID without hyphens between four-digit blocks). Currently, runtime is ~15-20 minutes for ~1600 datasets. |
 | `ror-metadata-retrieval.py` | Imports a manually edited map of freeform affiliations to ROR IDs, loops through the ROR API, and returns the display name. This script is not necessary if you add both the ROR identifier and the institution name to the mapping file. It may be deprecated in the future (especially with [forthcoming requirements for using the ROR API](https://ror.readme.io/docs/rest-api)) or substituted for the [data dump hosted on Zenodo](https://doi.org/10.5281/zenodo.6347574). Runtime should be under 2 minutes. |
 | `dataset-metadata-remediation.py` | Imports the outputs from `dataset-metadata-assessment.py` and creates new columns for remediated outputs (e.g., flipped author names, reformatted ORCIDs). Each remediation component can be toggled on or off (e.g., ROR remediation but not ORCID remediation). Runtime is <30 seconds. |
-| `dataset-email-generator.py` | Loops through the output of the previous files, identify all unique contact emails, identify all datasets slated for remediation for which a given email is listed, and prepares an email with the list of relevant datasets for each contact, including an FAQ attachment on the process. The email can be created in your local Drafts folder or set to auto-send upon running the script. Current runtime is <1 minute. |
+| `dataset-email-generator.py` | Loops through the output of the previous files, identify all unique contact emails, identify all datasets slated for remediation for which a given email is listed, and prepares an email with the list of relevant datasets for each contact, including an FAQ attachment on the process. The email can be created in your local Drafts folder or set to auto-send upon running the script. Current runtime is <1 minute. *Only works on Windows OS for Microsoft Outlook* |
 | `dataset-metadata-updater.py` | Imports the final output from the previous files with the columns of remediated metadata, retrieves JSON representations of all affected datasets from the Dataverse API, substitutes the changed metadata, pushes the updated JSON through the API, and creates drafts of the new version. The script can also be set to put updated versions into review or directly publish them. As with the third script, toggles for each metadata variable can be turned on or off if you only want to do certain metadata steps. Runtime to retrieve current JSON representations of the datasets' metadata and to update them is typically ~1 minute but will depend on the number of datasets and API stability. Likewise, time to push changes back to the server will depend on API stability. |
 | `sandbox-metadata-updater.py` | Sandbox script for a sandbox instance of Dataverse in order to gain familiarity on how auto-updating of metadata for datasets (either putting into draft or directly publishing) works. |
 | `workflow-summary.py` | Imports the most recent and second most recent dataframes for authors and datasets with metadata flags but no remediation, then outputs text and graphical comparisons of pre- and post-processing metadata quality. Limited to graphs and summaries for RDAP 2026 Summit at present. |
@@ -76,31 +115,11 @@ This script does not generate any output files.
 | `{today}_metadata-changes-log.csv` | Change log file with the DOI, the original author name (authorName field), what field was modified, what the original value in that field was, what the new value in that field was, what category the change was (e.g., 'added ROR'), and the timestamp. For dataset-level modifications, the original author name is replaced with 'DATASET_LEVEL'. Each change is returned as a separate row, so there may be multiple entries for one DOI and even for one author. |
 | `{today}_metadata-changes-log.json` | Change log file with the same information as the CSV version. Each DOI is used as the root, with all changes to any component nested within it (i.e. single entry per DOI). |
 
-## Requirements
-This workflow mostly makes use of modules in the Python standard library: *ast*, *csv*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script) and *rapidfuzz* (this will be deprecated in the future). The `utils.py` file with custom functions is also necessary. 
-
-For the addition of ROR identifiers and the clean-up/addition of ORCID identifiers, the [external vocab plug-in for ORCID and ROR](https://github.com/gdcc/dataverse-external-vocab-support/blob/main/examples/authorIDandAffilationUsingORCIDandROR.md) will need to be activated for the Dataverse installation; this plug-in has its own dependencies. I have tested this process when the plug-in was installed but not activated, which seems to work fine, but I am not sure if it works the same if the plug-in is simply not installed. 
-
-As noted in its description, `dataset-email-generator.py` is only designed for Microsoft Outlook and requires you to have the desktop application installed and logged into; I am not aware of any requirements for a specific Outlook version, operating system, or institutional configuration of Outlook but have not tested this.
-
-The script was developed in **Python 3.12** for **Dataverse 6.5**. I have not tested backwards or forwards compatibility at this time (but I assume the forwards compatibility is okay).
-
-### Config file fields
-| File | Content |
-|------|---------|
-| `KEYS` | Contains your API token (do not share!).|
-| `USER` | Contains your user information that will populate fields in email drafts; only necessary if you are running `dataset-email-generator.py`.|
-| `INSTITUTION`| Contains fields to include institutional name in filenames, and, for TDR institutions, changing which institution to generate the report for. |
-| `EXCLUDED` | Contains a custom list of people names for systematically excluding any datasets with these names in the depositor or contact fields from any re-curation. Can be blank.|
-| `PEOPLE_CONDITIONAL` | Similar to the above field, but re-curation is conditional on both the occurrence of these names in either field and other metadata fields. Can be blank. |
-| `TOGGLES`| Contains seven toggles that control different parts of the workflow. `test_remediate`: only for `dataset-metadata-remediation.py`, *TRUE* to create a small sample size for testing the actual re-curation process. `test_email`: only for `dataset-email-generator.py`, *TRUE* to create a small sample size for testing email design/drafting. `draft_email`: only for `dataset-email-generator.py`, *TRUE* to create email drafts in an Outlook inbox (if false, it will just run the pre-processing steps). `json_retrieval`: only for `dataset-metadata-updater.py`, *TRUE* to retrieve the current metadata for datasets. `ror_plugin_enabled`: (ideally) a temporary toggle for the edge case scenario in which a dataverse previously had the ROR plug-in enabled, disabled it, and intends to re-enable it. *TRUE* if plug-in is active. This is only relevant for ROR re-curation. `only_my_institution`: only for TDR institutions, *TRUE* to retrieve metadata for only one institution versus all institutions. `split_institution_output`: only for TDR institutions, *TRUE* to split outputs by institution when all institutions were queried.|
-| `RECURATION`| Contains seven toggles that control whether to flag and remediate different metadata attributes; in order: ORCID presence/absence, ROR presence/absence, author name formatting, keyword formatting, title punctuation (extra spaces or terminal periods), related works, and license. The first five are remediations - the workflow both flags missing/malformatted entries and fixes them - while the last two are flags - the workflow flags something for manual review. *TRUE* to enable a flag/remediation.|
-| `VARIABLES`| Contains parameters for the Dataverse API. These likely do not be adjusted (and page start and page increment should not be changed). The only ones that may warrant changing are `dataverse_test`, which controls the size of the retrieval for a test run.|
-
 ## Development
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
-## Versions
+## Version notes
+* **Version 1.4.0** is a significant update. It mainly address tech debt, including adding *uv* for package management, overhauling the config/env file to separate parameters/credentials, and adding several safeguards to ensure functionality when using a test environment. Functionality to identify, match, and add ROR identifiers for funding agencies has also been added. This README has also been restructured
 * **Version 1.3.2** is mainly to update the README but did update some scripts to match the filenames of outputs as listed in the README.
 * **Version 1.3.1** makes some minor edits to add manual rate limiting for large for-looped API calls and fixes a bug in the ORCID flagging. It also adds a Jupyter notebook with code for generating a few graphs for the TCDL annual meeting.
 * **Version 1.2.1** makes some minor syntax changes for stylistic consistency and saving JSON files. Some functionality for re-curating funder metadata is also added.

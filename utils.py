@@ -2,6 +2,12 @@ import math
 import os
 import pandas as pd
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def env_bool(key, default=False):
+    return os.environ.get(key, str(default)).strip().lower() in ('true', '1', 'yes')
 
 # Retrieves single page of Dataverse results
 def retrieve_page_dataverse(url, params=None, headers=None):

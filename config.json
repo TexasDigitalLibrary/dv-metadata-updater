@@ -1,17 +1,22 @@
 {
-    "KEYS": {
-        "dataverse_token": "",
-        "sandbox_token": ""
-    },
-    "USER": {
-        "user_email": "email@domain.edu",
-        "user_name": "First Last",
-        "user_title": "Dr.",
-        "user_credentials": "Ph.D."
-    },
     "INSTITUTION":{
-        "filename": "insert-institution-shorthand",
-        "myInstitution": ""
+        "ROR_MAP": {
+            "UT Austin": "https://ror.org/00hj54h04",
+            "Baylor": "https://ror.org/005781934",
+            "Lamar": "https://ror.org/008ms5s18",
+            "SMU": "https://ror.org/005781934",
+            "TAMU": "https://ror.org/01f5ytq51",
+            "Texas State": "https://ror.org/05h9q1g27",
+            "Texas Tech": "https://ror.org/0405mnx93",
+            "Houston": "https://ror.org/048sx0r50",
+            "HSC Fort Worth": "https://ror.org/05msxaq47",
+            "TAMU Galveston": "https://ror.org/00w0k4e67",
+            "TAMU International": "https://ror.org/028861t28",
+            "UT San Antonio Health": "https://ror.org/02f6dcw23",
+            "UT Southwestern Medical": "https://ror.org/05byvp690",
+            "UT Arlington": "https://ror.org/019kgqr73",
+            "Texas Woman's University": "https://ror.org/04dyzkj40"
+        }
     },
     "EXCLUDED":[
         "Adaimi, Rebecca",
@@ -32,28 +37,8 @@
     "PEOPLE_CONDITIONAL":
     [
         "Pierce Meyer, Katie",
-        "Trelogan, Jessica" 
+        "Trelogan, Jessica"
     ],
-    "TOGGLES":{
-        "test_environment": true,
-        "test_remediation": false,
-        "test_email": true,
-        "retrieve_json": false,
-        "draft_email": true,
-        "only_my_institution": true,
-        "split_institution_output": false,
-        "ror_plugin_enabled": false
-    },
-    "RECURATION":{
-        "orcid": true,
-        "ror": true,
-        "names": true,
-        "keywords": true,
-        "funding": true,
-        "punctuation": true,
-        "works": true,
-        "licenses": false
-    },
     "VARIABLES": {
         "PAGE_SIZES": {
             "dataverse_prod": 200,
