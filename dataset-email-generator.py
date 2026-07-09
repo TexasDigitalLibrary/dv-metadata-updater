@@ -14,8 +14,9 @@ faq_relative_path = "docs/tdr-recuration-faq.pdf"
 faq_absolute_path = Path(faq_relative_path).resolve()
 
 # Test environment (incomplete run, faster to complete)
+test = env_bool('TEST_ENVIRONMENT')
 ## For this script, the test env will only generate/test emails for 10 contacts
-test = env_bool('TEST_EMAIL')
+test_email = env_bool('TEST_EMAIL')
 ## Whether to create draft emails in your inbox or just to run the pre-processing parts
 draft_email = env_bool('DRAFT_EMAIL')
 
@@ -32,7 +33,10 @@ user_credentials = os.environ.get('USER_CREDENTIALS', '')
 
 # Get directories
 script_dir = os.getcwd()
-outputs_dir = os.path.join(script_dir, 'outputs')
+if test:
+    outputs_dir = os.path.join(script_dir, 'test/outputs')
+else:
+    outputs_dir = os.path.join(script_dir, 'outputs')
 
 # ============================================
 #            INPUT DATA PROCESSING
@@ -57,7 +61,7 @@ def flip_names(names):
     return '; '.join(flipped)
 
 datasets_exploded_dedup['dataset_contact_flipped'] = datasets_exploded_dedup['dataset_contact'].apply(flip_names)
-if test:
+if test_email:
     datasets_exploded_dedup = datasets_exploded_dedup.head(10)
     # datasets = datasets.drop_duplicates('dataset_email')
 
