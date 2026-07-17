@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.4.0
-* *Released*: 2026/07/09
+* *Version*: 1.5.0
+* *Released*: 2026/07/17
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/07/09
+* *README last updated*: 2026/07/17
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -45,8 +45,7 @@ The env file contains credentials and other parameters that are likely to need t
 | `USER` | Contains user information that will populate fields in email drafts; only necessary if you are running `dataset-email-generator.py`. *Title* appears before your name (e.g., 'Dr.'); *Credentials* appears after your name (e.g., Adam Smith, MLIS).|
 | `INSTITUTION`| Contains two fields, one for filename (can be whatever you want) and one for the operational institutional name (reference the ROR map in the `config.json` file for the controlled vocabulary). |
 | `TOGGLES`| Contains seven toggles that control different parts of the workflow. `test_remediate`: only for `dataset-metadata-remediation.py`, 'true' to create a small sample size for testing the actual re-curation process. `test_email`: only for `dataset-email-generator.py`, 'true' to use the small test sample size for testing email design/drafting. `draft_email`: only for `dataset-email-generator.py`, 'true' to create email drafts in an Outlook inbox (if false, it will just run the pre-processing steps). `json_retrieval`: only for `dataset-metadata-updater.py`, 'true' to retrieve the current metadata for datasets. `ror_plugin_enabled`: (ideally) a temporary toggle for the edge case scenario in which a dataverse previously had the ROR plug-in enabled, disabled it, and intends to re-enable it. 'true' if plug-in is active. `only_my_institution`: only for TDR institutions, 'true' to retrieve metadata for only one institution versus all institutions. `split_institution_output`: only for TDR institutions, 'true' to split outputs by institution when all institutions were queried.|
-| `RECURATION`| Contains seven toggles that control whether to flag and remediate different metadata attributes; in order: ORCID presence/absence, ROR presence/absence, author name formatting, keyword formatting, title punctuation (extra spaces or terminal periods), funders, related works, and license. The first five are remediations (the workflow both flags missing/malformatted entries and fixes them), the sixth flags missing funding and uses ROR to standardize existing funders, and the last two are flag-only (the workflow flags something for manual review). 'true' for all to enable a flag/remediation. These should not be changed across a full run (e.g., do not change between running the first and second script).|
-
+| `RECURATION`| Contains eight toggles that control whether to flag and remediate different metadata attributes; in order: ORCID presence/absence, ROR presence/absence, author name formatting, keyword formatting, title punctuation (extra spaces or terminal periods), funders, related works, and license. The first five are remediations (the workflow both flags missing/malformatted entries and fixes them), the sixth flags missing funding and uses ROR to standardize existing funders, and the last two are flag-only (the workflow flags something for manual review). 'true' for all to enable a flag/remediation. These should not be changed across a full run (e.g., do not change between running the first and second script).|
 
 ### config file
 The config file contains semi-static to static parameters that are unlikely to need to be modified by another user, including API query parameters and a map of all TDR institutions to their ROR identifier. The one set of fields that would be institution-specific are "EXCLUDED" and "PEOPLE_CONDITIONAL" - this was designed specifically for UT Austin due to the nature of 'collections as data' deposits and likely is irrelevant for other institutions. Leaving it unmodified will not affect other institutions running the script. 
@@ -119,6 +118,7 @@ This script does not generate any output files.
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Version notes
+* **Version 1.5.0** is a minor update. It makes some bug fixes to address inaccurate Boolean flag creation but mainly reworks some code to be more accurate in how the flags are created and generalizes the codebase (to an extent) to avoid mention of TDR or UT Austin.
 * **Version 1.4.0** is a significant update. It mainly address tech debt, including adding *uv* for package management, overhauling the config/env file to separate parameters/credentials, and adding several safeguards to ensure functionality when using a test environment. Functionality to identify, match, and add ROR identifiers for funding agencies has also been added. This README has also been restructured
 * **Version 1.3.2** is mainly to update the README but did update some scripts to match the filenames of outputs as listed in the README.
 * **Version 1.3.1** makes some minor edits to add manual rate limiting for large for-looped API calls and fixes a bug in the ORCID flagging. It also adds a Jupyter notebook with code for generating a few graphs for the TCDL annual meeting.

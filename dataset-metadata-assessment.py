@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import pandas as pd
+import re
 import requests
 import time
 from datetime import datetime
@@ -117,7 +118,7 @@ else:
 
 print('Beginning to define API call parameters.\n')
 
-url_tdr = 'https://dataverse.tdl.org/api/search/'
+url_dataverse = 'https://dataverse.tdl.org/api/search/'
 # Filter for only published datasets
 status = 'publicationStatus:Published'
 
@@ -135,11 +136,11 @@ query = '*'
 page_start_dataset = config['VARIABLES']['PAGE_STARTS']['dataverse']
 page_increment_dataset = config['VARIABLES']['PAGE_INCREMENTS']['dataverse']
 
-headers_tdr = {
+headers_dataverse = {
     'X-Dataverse-key': os.environ['DATAVERSE_TOKEN']
 }
 
-params_tdr_ut_austin = {
+params_dataverse_ut_austin = {
     'q': query,
     'fq': status,
     'subtree': 'utexas',
@@ -148,7 +149,7 @@ params_tdr_ut_austin = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_baylor = {
+params_dataverse_baylor = {
     'q': query,
     'fq': status,
     'subtree': 'baylor',
@@ -157,7 +158,7 @@ params_tdr_baylor = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_lamar = {
+params_dataverse_lamar = {
     'q': query,
     'fq': status,
     'subtree': 'lamar',
@@ -166,7 +167,7 @@ params_tdr_lamar = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_smu = {
+params_dataverse_smu = {
     'q': query,
     'fq': status,
     'subtree': 'smu',
@@ -175,7 +176,7 @@ params_tdr_smu = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_tamu = {
+params_dataverse_tamu = {
     'q': query,
     'fq': status,
     'subtree': 'tamu',
@@ -184,7 +185,7 @@ params_tdr_tamu = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_txst = {
+params_dataverse_txst = {
     'q': query,
     'fq': status,
     'subtree': 'txst',
@@ -193,7 +194,7 @@ params_tdr_txst = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_ttu = {
+params_dataverse_ttu = {
     'q': query,
     'fq': status,
     'subtree': 'ttu',
@@ -202,7 +203,7 @@ params_tdr_ttu = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_houston = {
+params_dataverse_houston = {
     'q': query,
     'fq': status,
     'subtree': 'uh',
@@ -211,7 +212,7 @@ params_tdr_houston = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_hscfw = {
+params_dataverse_hscfw = {
     'q': query,
     'fq': status,
     'subtree': 'unthsc',
@@ -220,7 +221,7 @@ params_tdr_hscfw = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_tamug = {
+params_dataverse_tamug = {
     'q': query,
     'fq': status,
     'subtree': 'tamug',
@@ -229,7 +230,7 @@ params_tdr_tamug = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_tamui = {
+params_dataverse_tamui = {
     'q': query,
     'fq': status,
     'subtree': 'tamiu',
@@ -238,7 +239,7 @@ params_tdr_tamui = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_utsah = {
+params_dataverse_utsah = {
     'q': query,
     'fq': status,
     'subtree': 'uthscsa',
@@ -247,7 +248,7 @@ params_tdr_utsah = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_utswm = {
+params_dataverse_utswm = {
     'q': query,
     'fq': status,
     'subtree': 'utswmed',
@@ -256,7 +257,7 @@ params_tdr_utswm = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_uta = {
+params_dataverse_uta = {
     'q': query,
     'fq': status,
     'subtree': 'uta',
@@ -265,7 +266,7 @@ params_tdr_uta = {
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_tdr_twu = {
+params_dataverse_twu = {
     'q': query,
     'fq': status,
     'subtree': 'twu',
@@ -276,21 +277,21 @@ params_tdr_twu = {
 }
 
 all_params_datasets = {
-        'UT Austin': params_tdr_ut_austin,
-        'Baylor': params_tdr_baylor,
-        'Lamar': params_tdr_lamar,
-        'SMU': params_tdr_smu,
-        'TAMU': params_tdr_tamu,
-        'Texas State': params_tdr_txst,
-        'Texas Tech': params_tdr_ttu,
-        'Houston': params_tdr_houston,
-        'HSC Fort Worth': params_tdr_hscfw,
-        'TAMU Galveston': params_tdr_tamug,
-        'TAMU International': params_tdr_tamui,
-        'UT San Antonio Health': params_tdr_utsah,
-        'UT Southwestern Medical': params_tdr_utswm,
-        'UT Arlington': params_tdr_uta,
-        "Texas Woman's University": params_tdr_twu
+        'UT Austin': params_dataverse_ut_austin,
+        'Baylor': params_dataverse_baylor,
+        'Lamar': params_dataverse_lamar,
+        'SMU': params_dataverse_smu,
+        'TAMU': params_dataverse_tamu,
+        'Texas State': params_dataverse_txst,
+        'Texas Tech': params_dataverse_ttu,
+        'Houston': params_dataverse_houston,
+        'HSC Fort Worth': params_dataverse_hscfw,
+        'TAMU Galveston': params_dataverse_tamug,
+        'TAMU International': params_dataverse_tamui,
+        'UT San Antonio Health': params_dataverse_utsah,
+        'UT Southwestern Medical': params_dataverse_utswm,
+        'UT Arlington': params_dataverse_uta,
+        "Texas Woman's University": params_dataverse_twu
     }
 
 
@@ -306,12 +307,12 @@ else:
 #          SEARCH API RETRIEVAL: Datasets
 # ============================================
 
-print('Starting TDR retrieval.\n')
-data_tdr_search = retrieve_all_institutions(url_tdr, params_list, headers_tdr, page_start_dataset, page_size_dataset, page_limit_dataset)
+print('Starting Dataverse API retrieval.\n')
+data_dataverse_search = retrieve_all_institutions(url_dataverse, params_list, headers_dataverse, page_start_dataset, page_size_dataset, page_limit_dataset)
 
-print('Starting TDR filtering.\n')
-data_tdr_search_select = []
-for item in data_tdr_search:
+print('Starting Dataverse API response filtering.\n')
+data_dataverse_search_select = []
+for item in data_dataverse_search:
     id = item.get('global_id', None)
     type = item.get('type', None)
     institution = item.get('institution',None)
@@ -325,7 +326,7 @@ for item in data_tdr_search:
     minorV = item.get('minorVersion', 0)
     comboV = f'{majorV}.{minorV}'
     version_id = item.get('versionId', None)
-    data_tdr_search_select.append({
+    data_dataverse_search_select.append({
         'institution': institution, 
         'doi': id,
         'description': description,
@@ -339,14 +340,14 @@ for item in data_tdr_search:
         'version_id': version_id
     })
 
-df_data_tdr_search_select = pd.DataFrame(data_tdr_search_select)
+df_data_dataverse_search_select = pd.DataFrame(data_dataverse_search_select)
 
 # Ensuring full version (float)
-df_data_tdr_search_select['total_version'] = df_data_tdr_search_select['total_version'].apply(extract_max_version)
+df_data_dataverse_search_select['total_version'] = df_data_dataverse_search_select['total_version'].apply(extract_max_version)
 # Editing DOI field
-df_data_tdr_search_select['doi'] = df_data_tdr_search_select['doi'].str.replace('doi:', '')
+df_data_dataverse_search_select['doi'] = df_data_dataverse_search_select['doi'].str.replace('doi:', '')
 
-df_data_tdr_search_select.to_csv(f'outputs/{today}_{institution_filename}_all-datasets-PUBLISHED.csv', index=False, encoding='utf-8-sig')
+df_data_dataverse_search_select.to_csv(f'outputs/{today}_{institution_filename}_all-datasets-PUBLISHED.csv', index=False, encoding='utf-8-sig')
 
 # ============================================
 #           API PARAMETERS: Dataverses
@@ -360,7 +361,7 @@ query = '*'
 page_start_dataverse = config['VARIABLES']['PAGE_STARTS']['dataverse']
 page_increment_dataverse = config['VARIABLES']['PAGE_INCREMENTS']['dataverse']
 
-params_tdr_ut_austin = {
+params_dataverse_ut_austin = {
     'q': query,
     'subtree': 'utexas',
     'type': 'dataverse',
@@ -369,7 +370,7 @@ params_tdr_ut_austin = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_baylor = {
+params_dataverse_baylor = {
     'q': query,
     'subtree': 'baylor',
     'type': 'dataverse',
@@ -378,7 +379,7 @@ params_tdr_baylor = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_lamar = {
+params_dataverse_lamar = {
     'q': query,
     'subtree': 'lamar',
     'type': 'dataverse',
@@ -387,7 +388,7 @@ params_tdr_lamar = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_smu = {
+params_dataverse_smu = {
     'q': query,
     'subtree': 'smu',
     'type': 'dataverse',
@@ -396,7 +397,7 @@ params_tdr_smu = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_tamu = {
+params_dataverse_tamu = {
     'q': query,
     'subtree': 'tamu',
     'type': 'dataverse',
@@ -405,7 +406,7 @@ params_tdr_tamu = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_txst = {
+params_dataverse_txst = {
     'q': query,
     'subtree': 'txst',
     'type': 'dataverse',
@@ -414,7 +415,7 @@ params_tdr_txst = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_ttu = {
+params_dataverse_ttu = {
     'q': query,
     'subtree': 'ttu',
     'type': 'dataverse',
@@ -423,7 +424,7 @@ params_tdr_ttu = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_houston = {
+params_dataverse_houston = {
     'q': query,
     'subtree': 'uh',
     'type': 'dataverse',
@@ -432,7 +433,7 @@ params_tdr_houston = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_hscfw = {
+params_dataverse_hscfw = {
     'q': query,
     'subtree': 'unthsc',
     'type': 'dataverse',
@@ -441,7 +442,7 @@ params_tdr_hscfw = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_tamug = {
+params_dataverse_tamug = {
     'q': query,
     'subtree': 'tamug',
     'type': 'dataverse',
@@ -449,7 +450,7 @@ params_tdr_tamug = {
     'page': page_increment_dataverse,
     'per_page': page_limit_dataverse
 }
-params_tdr_tamui = {
+params_dataverse_tamui = {
     'q': query,
     'subtree': 'tamiu',
     'type': 'dataverse',
@@ -457,7 +458,7 @@ params_tdr_tamui = {
     'page': page_increment_dataverse,
     'per_page': page_limit_dataverse
 }
-params_tdr_utsah = {
+params_dataverse_utsah = {
     'q': query,
     'subtree': 'uthscsa',
     'type': 'dataverse',
@@ -465,7 +466,7 @@ params_tdr_utsah = {
     'page': page_increment_dataverse,
     'per_page': page_limit_dataverse
 }
-params_tdr_utswm = {
+params_dataverse_utswm = {
     'q': query,
     'subtree': 'utswmed',
     'type': 'dataverse',
@@ -474,7 +475,7 @@ params_tdr_utswm = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_uta = {
+params_dataverse_uta = {
     'q': query,
     'subtree': 'uta',
     'type': 'dataverse',
@@ -483,7 +484,7 @@ params_tdr_uta = {
     'per_page': page_limit_dataverse
 }
 
-params_tdr_twu = {
+params_dataverse_twu = {
     'q': query,
     'subtree': 'twu',
     'type': 'dataverse',
@@ -493,21 +494,21 @@ params_tdr_twu = {
 }
 
 all_params_dataverses = {
-        'UT Austin': params_tdr_ut_austin,
-        'Baylor': params_tdr_baylor,
-        'Lamar': params_tdr_lamar,
-        'SMU': params_tdr_smu,
-        'TAMU': params_tdr_tamu,
-        'Texas State': params_tdr_txst,
-        'Texas Tech': params_tdr_ttu,
-        'Houston': params_tdr_houston,
-        'HSC Fort Worth': params_tdr_hscfw,
-        'TAMU Galveston': params_tdr_tamug,
-        'TAMU International': params_tdr_tamui,
-        'UT San Antonio Health': params_tdr_utsah,
-        'UT Southwestern Medical': params_tdr_utswm,
-        'UT Arlington': params_tdr_uta,
-        "Texas Women's University": params_tdr_twu
+        'UT Austin': params_dataverse_ut_austin,
+        'Baylor': params_dataverse_baylor,
+        'Lamar': params_dataverse_lamar,
+        'SMU': params_dataverse_smu,
+        'TAMU': params_dataverse_tamu,
+        'Texas State': params_dataverse_txst,
+        'Texas Tech': params_dataverse_ttu,
+        'Houston': params_dataverse_houston,
+        'HSC Fort Worth': params_dataverse_hscfw,
+        'TAMU Galveston': params_dataverse_tamug,
+        'TAMU International': params_dataverse_tamui,
+        'UT San Antonio Health': params_dataverse_utsah,
+        'UT Southwestern Medical': params_dataverse_utswm,
+        'UT Arlington': params_dataverse_uta,
+        "Texas Women's University": params_dataverse_twu
     }
 
 if only_my_institution:
@@ -521,24 +522,24 @@ else:
 #        SEARCH API RETRIEVAL: Dataverses
 # ============================================
 
-print('Starting TDR retrieval.\n')
-dataverse_tdr_search = retrieve_all_institutions(url_tdr, params_list, headers_tdr, page_start_dataverse, page_size_dataverse, page_limit_dataverse)
+print('Starting Dataverse API retrieval.\n')
+dataverse_dataverse_search = retrieve_all_institutions(url_dataverse, params_list, headers_dataverse, page_start_dataverse, page_size_dataverse, page_limit_dataverse)
 
-print('Starting TDR filtering.\n')
-dataverses_select_tdr = []
-for item in dataverse_tdr_search:
+print('Starting Dataverse API response filtering.\n')
+dataverses_select_dataverse = []
+for item in dataverse_dataverse_search:
     name = item.get('name', '')
     identifier = item.get('identifier', '')
     parent_dataverse_name = item.get('parentDataverseName', '')
     parent_dataverse_id = item.get('parentDataverseIdentifier', '')
-    dataverses_select_tdr.append({
+    dataverses_select_dataverse.append({
         'dataverse_code': identifier,
         'parent_dataverse': parent_dataverse_name,
         'parent_code': parent_dataverse_id
     })
 
-df_dataverses_select_tdr = pd.DataFrame(dataverses_select_tdr)
-df_datasets_dataverses = pd.merge(df_data_tdr_search_select, df_dataverses_select_tdr, left_on='dataverse_code', right_on='dataverse_code', how='left')
+df_dataverses_select_dataverse = pd.DataFrame(dataverses_select_dataverse)
+df_datasets_dataverses = pd.merge(df_data_dataverse_search_select, df_dataverses_select_dataverse, left_on='dataverse_code', right_on='dataverse_code', how='left')
 
 # ============================================
 #         NATIVE API RETRIEVAL: Datasets
@@ -547,7 +548,7 @@ df_datasets_dataverses = pd.merge(df_data_tdr_search_select, df_dataverses_selec
 # Retrieving additional metadata for deposits
 ## If a previously published dataset is currently in DRAFT state, it will return the information for the DRAFT (most current) state
 print('Starting Native API call\n')
-url_tdr_native = 'https://dataverse.tdl.org/api/datasets/'
+url_dataverse_native = 'https://dataverse.tdl.org/api/datasets/'
 
 print(f'Total datasets to be analyzed: {len(df_datasets_dataverses)}.\n')
 
@@ -558,7 +559,7 @@ second_timeouts = []
 final_timeouts = []
 for doi in df_datasets_dataverses['doi']:
     try:
-        response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=5)
+        response = requests.get(f'{url_dataverse_native}:persistentId/?persistentId=doi:{doi}', headers=headers_dataverse, timeout=5)
         if response.status_code == 200:
             print(f'Retrieving {doi}\n')
             results.append(response.json())
@@ -575,7 +576,7 @@ if first_timeouts:
     time.sleep(2) 
     for doi in first_timeouts:
         try:
-            response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=5)
+            response = requests.get(f'{url_dataverse_native}:persistentId/?persistentId=doi:{doi}', headers=headers_dataverse, timeout=5)
             if response.status_code == 200:
                 print(f'Retrying {doi}\n')
                 results.append(response.json())
@@ -592,7 +593,7 @@ if second_timeouts:
     time.sleep(2) 
     for doi in first_timeouts:
         try:
-            response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=10)
+            response = requests.get(f'{url_dataverse_native}:persistentId/?persistentId=doi:{doi}', headers=headers_dataverse, timeout=10)
             if response.status_code == 200:
                 print(f'Retrying {doi} again\n')
                 results.append(response.json())
@@ -615,15 +616,15 @@ with open(f'{logs_dir}/{today}_failed-retrievals.csv', 'w', newline='', encoding
             'Error Message': item['reason']
         })
 
-data_tdr_native = {'datasets': results}
+data_dataverse_native = {'datasets': results}
 
 print(f"Number of datasets that initially timed out: {len(first_timeouts)}\n")
 print(f"Number of datasets that subsequently timed out: {len(second_timeouts)}\n")
 print(f"TNumber of datasets that perpetually timed out: {len(final_timeouts)}\n")
 
 print('Beginning dataframe subsetting\n')
-data_tdr_native_select = [] 
-for item in data_tdr_native['datasets']:
+data_dataverse_native_select = [] 
+for item in data_dataverse_native['datasets']:
     # Dataset level
     data = item.get('data', None)
     dataset_id = data.get('id', None)
@@ -771,11 +772,11 @@ for item in data_tdr_native['datasets']:
         'related_works_urls': urls,
         'related_works_types': relations
     }
-    data_tdr_native_select.append(base_entry)
+    data_dataverse_native_select.append(base_entry)
 
 # Dataframe with entries for individual authors
 author_entries = []
-for item in data_tdr_native['datasets']:
+for item in data_dataverse_native['datasets']:
     data = item.get('data', {})
     latest = data.get('latestVersion', {})
     doi = latest.get('datasetPersistentId', None)
@@ -810,10 +811,10 @@ for item in data_tdr_native['datasets']:
                 }
                 author_entries.append(author_entry)
 
-df_data_tdr_native_select = pd.json_normalize(data_tdr_native_select)
-df_data_tdr_native_select['doi'] = df_data_tdr_native_select['doi'].str.replace('doi:', '')
+df_data_dataverse_native_select = pd.json_normalize(data_dataverse_native_select)
+df_data_dataverse_native_select['doi'] = df_data_dataverse_native_select['doi'].str.replace('doi:', '')
 
-df_select_concatenated = pd.merge(df_datasets_dataverses, df_data_tdr_native_select, on='doi', how='left')
+df_select_concatenated = pd.merge(df_datasets_dataverses, df_data_dataverse_native_select, on='doi', how='left')
 
 # ============================================
 #           DATASET-LEVEL FLAGGING
@@ -962,13 +963,7 @@ if recurate_orcid:
     ### ORCID present but malformatted (no dashes)
     df_author_entries['malformed_orcid_no_hyphens'] = (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID'
         ) & ~df_author_entries['author_identifier'].str.contains('-', na=False
-        ) & (df_author_entries['author_identifier'].notna())
-    
-    ### ORCID present but malformatted (not hyperlinked)
-    df_author_entries['malformed_orcid_no_url'] = (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID'
-        ) & ~df_author_entries['author_identifier'].str.contains('https://orcid.org/00', na=False
-        ) & (df_author_entries['author_identifier'].notna()
-        ) & df_author_entries['author_identifier'].str.contains('-', na=False)
+        ) & (df_author_entries['author_identifier'].notna()) & (df['author_identifier'].str.strip() != '')
     
     ### ORCID present but malformatted (space between shoulder and identifier)
     df_author_entries['malformed_orcid_space'] = (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID'
@@ -979,12 +974,35 @@ if recurate_orcid:
         df_author_entries['author_identifier_expanded'].isna()
         ) & df_author_entries['author_identifier'].str.contains('https://orcid.org/00', na=False)
     
-    ### ORCID present but without https:// protocol
+    ### ORCID present in partial URL but without https:// protocol
     df_author_entries['malformed_orcid_single_field'] = (df_author_entries['author_identifier_scheme'].isna() | 
         df_author_entries['author_identifier_expanded'].isna()
         ) & df_author_entries['author_identifier'].str.contains('orcid.org/00', na=False) & ~df_author_entries['author_identifier'].str.contains('http', na=False)
     
-    flags_cols = [col for col in df_author_entries.columns if col.startswith(('malformed_orcid', 'missing'))]
+    ### ORCID present but not hyperlinked (short form; not a problem per se, but might as well standardize)
+    df_author_entries['subpar_orcid_no_url'] = (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID'
+        ) & ~df_author_entries['author_identifier'].str.contains('https://orcid.org/00', na=False
+        ) & (df_author_entries['author_identifier'].notna()
+        ) & df_author_entries['author_identifier'].str.contains('-', na=False)
+
+    ### ORCID present but using http instead of https (not really a problem but might as well standardize)
+    df_author_entries['subpar_orcid_http'] = df_author_entries['author_identifier'].str.contains('http://orcid.org/', na=False)
+    
+    ### ORCID format classification (correctly formatted entries only)
+    _short = re.compile(r'^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$')
+    _long  = re.compile(r'^https?://orcid\.org/\d{4}-\d{4}-\d{4}-\d{3}[\dX]$')
+    _id = df_author_entries['author_identifier'].fillna('').str.strip()
+    df_author_entries['orcid_format'] = (
+        _id.map(lambda v: 'none' if v == '' else 'short form' if _short.match(v) else 'long form' if _long.match(v) else 'not recognized')
+    )
+    df_author_entries['orcid_valid'] = df_author_entries['orcid_format'].isin(['short form', 'long form'])
+
+    # ID only malformed (exclude missing)
+    malformed_cols = [col for col in df.columns if col.startswith('malformed_orcid')]
+    if malformed_cols:
+        df['malformed_orcid_any'] = df[malformed_cols].any(axis=1)
+
+    flags_cols = [col for col in df_author_entries.columns if col.startswith(('malformed_orcid', 'missing_orcid', 'missing_author_scheme'))]
     if flags_cols:
         df_author_entries['flag_orcid'] = df_author_entries[flags_cols].any(axis=1)
 
