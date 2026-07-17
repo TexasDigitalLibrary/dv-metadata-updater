@@ -3,6 +3,7 @@ import json
 import os
 import pandas as pd
 import re
+import shutil
 from datetime import datetime
 from rapidfuzz import process, fuzz
 from utils import env_bool, load_most_recent_file
@@ -42,12 +43,30 @@ my_institution_short_name = os.environ['MY_INSTITUTION']
 institution_ror_map = config['INSTITUTION']['ROR_MAP']
 institution_ror = institution_ror_map.get(my_institution_short_name)
 
+# Current date for filenames
+today = datetime.now().strftime('%Y%m%d')
+
 # Get directories
 script_dir = os.getcwd()
 if test:
     outputs_dir = os.path.join(script_dir, 'test/outputs')
 else:
     outputs_dir = os.path.join(script_dir, 'outputs')
+
+# Move all older outputs to new folder
+if test:
+    old_outputs_dir = os.path.join(script_dir, 'test/outputs/old-outputs')
+else:
+    old_outputs_dir = os.path.join(script_dir, 'outputs/old-outputs')
+if os.path.isdir(old_outputs_dir):
+    print("old outputs directory found - no need to recreate\n")
+else:
+    os.mkdir(old_outputs_dir)
+    print("old outputs directory has been created\n")
+for filename in os.listdir(outputs_dir):
+    if os.path.isfile(os.path.join(outputs_dir, filename)) and not filename.startswith(today):
+        shutil.move(os.path.join(outputs_dir, filename), os.path.join(old_outputs_dir, filename))
+print(f'Files not generated on {today} have been moved to the old-outputs subdirectory.\n')
 
 
 # Load most recent version of dataset-authors file

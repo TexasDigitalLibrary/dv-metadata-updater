@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import shutil
 from utils import env_bool, load_most_recent_file, load_nth_most_recent_file
 
 # ============================================
@@ -41,6 +42,18 @@ else:
         os.mkdir('plots')
         print('plots directory has been created\n')
     plots_dir = os.path.join(script_dir, 'plots')
+
+# Move all older graphs to new folder
+if os.path.isdir("plots/old-plots"):
+    print("old plots directory found - no need to recreate\n")
+else:
+    os.mkdir("plots/old-plots")
+    print("old plots directory has been created\n")
+#move plots not created today to that folder
+for filename in os.listdir('plots'):
+    if os.path.isfile(os.path.join('plots', filename)) and not filename.startswith(today):
+        shutil.move(os.path.join('plots', filename), os.path.join('plots/old-plots', filename))
+print(f'Files not generated on {today} have been moved to the old-plots subdirectory.\n')
 
 # ============================================
 #               FILE LOAD-IN
