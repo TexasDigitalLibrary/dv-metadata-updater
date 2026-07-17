@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.4.0
-* *Released*: 2026/07/09
+* *Version*: 1.5.0
+* *Released*: 2026/07/17
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/07/09
+* *README last updated*: 2026/07/17
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -118,6 +118,7 @@ This script does not generate any output files.
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
 ## Version notes
+* **Version 1.5.0** is a minor update. It makes some bug fixes to address inaccurate Boolean flag creation but mainly reworks some code to be more accurate in how the flags are created and generalizes the codebase (to an extent) to avoid mention of TDR or UT Austin.
 * **Version 1.4.0** is a significant update. It mainly address tech debt, including adding *uv* for package management, overhauling the config/env file to separate parameters/credentials, and adding several safeguards to ensure functionality when using a test environment. Functionality to identify, match, and add ROR identifiers for funding agencies has also been added. This README has also been restructured
 * **Version 1.3.2** is mainly to update the README but did update some scripts to match the filenames of outputs as listed in the README.
 * **Version 1.3.1** makes some minor edits to add manual rate limiting for large for-looped API calls and fixes a bug in the ORCID flagging. It also adds a Jupyter notebook with code for generating a few graphs for the TCDL annual meeting.
