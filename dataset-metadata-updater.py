@@ -158,17 +158,17 @@ if retrieve:
     first_timeouts = []
     final_timeouts = []
 
-    headers_tdr = {
+    headers_dataverse = {
         'X-Dataverse-key': os.environ['DATAVERSE_TOKEN']
     }
 
-    url_tdr_native = 'https://dataverse.tdl.org/api/datasets/'
+    url_dataverse_native = 'https://dataverse.tdl.org/api/datasets/'
 
     for idx, row in df_dois.iterrows():
         doi = row['doi']
         status = row['current_status']
         try:
-            response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=5)
+            response = requests.get(f'{url_dataverse_native}:persistentId/?persistentId=doi:{doi}', headers=headers_dataverse, timeout=5)
             if response.status_code == 200:
                 print(f'Retrieving JSON representation for {doi}...\n')
                 item = response.json()
@@ -191,7 +191,7 @@ if retrieve and first_timeouts:
         doi = timeout['doi']
         status = df_dois[df_dois['doi'] == doi]['current_status'].values[0]
         try:
-            response = requests.get(f'{url_tdr_native}:persistentId/?persistentId=doi:{doi}', headers=headers_tdr, timeout=5)
+            response = requests.get(f'{url_dataverse_native}:persistentId/?persistentId=doi:{doi}', headers=headers_dataverse, timeout=5)
             if response.status_code == 200:
                 print(f'Retrieving JSON representation for {doi}...\n')
                 item = response.json()
@@ -764,7 +764,7 @@ print('-'*60 + '\n')
 # ============================================
 
 server_url = 'https://dataverse.tdl.org'
-headers_tdr = {
+headers_dataverse = {
     'X-Dataverse-key': os.environ['DATAVERSE_TOKEN'],
     'Content-Type': 'application/json'
 }
@@ -802,7 +802,7 @@ for filename in dir_path.iterdir():
     # Create draft
     try:
         update_url = f'{server_url}/api/datasets/:persistentId/versions/:draft?persistentId={doi}'
-        response = requests.put(update_url, headers=headers_tdr, json=payload)
+        response = requests.put(update_url, headers=headers_dataverse, json=payload)
 
         if response.status_code == 200:
             print('✓ Dataset metadata updated.\n')
@@ -826,7 +826,7 @@ for filename in dir_path.iterdir():
         # else:
         #     # Publish the dataset
         #     publish_url = f'{server_url}/api/datasets/:persistentId/actions/:publish?persistentId={doi}&type=minor'
-        #     response = requests.post(publish_url, headers=headers_tdr)
+        #     response = requests.post(publish_url, headers=headers_dataverse)
 
         #     if response.status_code == 200:
         #         print('✓ Dataset published successfully.\n')
