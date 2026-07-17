@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import re
 import requests
+import shutil
 import time
 from datetime import datetime
 from utils import env_bool, extract_max_version, is_valid_orcid, is_valid_ror, retrieve_all_institutions
@@ -92,6 +93,17 @@ else:
         os.mkdir('logs')
         print('logs directory has been created\n')
     logs_dir = os.path.join(script_dir, 'logs')
+
+# Move all older outputs to new folder
+if os.path.isdir("outputs/old-outputs"):
+    print("old outputs directory found - no need to recreate\n")
+else:
+    os.mkdir("outputs/old-outputs")
+    print("old outputs directory has been created\n")
+for filename in os.listdir('outputs'):
+    if os.path.isfile(os.path.join('outputs', filename)) and not filename.startswith(today):
+        shutil.move(os.path.join('outputs', filename), os.path.join('outputs/old-outputs', filename))
+print(f'Files not generated on {today} have been moved to the old-outputs subdirectory.\n')
 
 # Load existing ROR mapping for affiliation re-curation
 ## Only purpose of loading in this script is to add new affiliations
@@ -963,7 +975,7 @@ if recurate_orcid:
     ### ORCID present but malformatted (no dashes)
     df_author_entries['malformed_orcid_no_hyphens'] = (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID'
         ) & ~df_author_entries['author_identifier'].str.contains('-', na=False
-        ) & (df_author_entries['author_identifier'].notna()) & (df['author_identifier'].str.strip() != '')
+        ) & (df_author_entries['author_identifier'].notna()) & (df_author_entries['author_identifier'].str.strip() != '')
     
     ### ORCID present but malformatted (space between shoulder and identifier)
     df_author_entries['malformed_orcid_space'] = (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID'
@@ -998,9 +1010,9 @@ if recurate_orcid:
     df_author_entries['orcid_valid'] = df_author_entries['orcid_format'].isin(['short form', 'long form'])
 
     # ID only malformed (exclude missing)
-    malformed_cols = [col for col in df.columns if col.startswith('malformed_orcid')]
+    malformed_cols = [col for col in df_author_entries.columns if col.startswith('malformed_orcid')]
     if malformed_cols:
-        df['malformed_orcid_any'] = df[malformed_cols].any(axis=1)
+        df_author_entries['malformed_orcid_any'] = df_author_entries[malformed_cols].any(axis=1)
 
     flags_cols = [col for col in df_author_entries.columns if col.startswith(('malformed_orcid', 'missing_orcid', 'missing_author_scheme'))]
     if flags_cols:
