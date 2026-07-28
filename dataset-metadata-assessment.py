@@ -7,7 +7,7 @@ import requests
 import shutil
 import time
 from datetime import datetime
-from utils import env_bool, extract_max_version, is_valid_orcid, is_valid_ror, retrieve_all_institutions
+from utils import build_institution_params, env_bool, extract_max_version, is_recent_file, is_valid_orcid, is_valid_ror, retrieve_all_institutions
 
 # ============================================
 #               WORKFLOW SET-UP
@@ -42,6 +42,8 @@ recurate_punctuation = env_bool('RECURATION_PUNCTUATION')
 recurate_ror = env_bool('RECURATION_ROR')
 recurate_works = env_bool('RECURATION_WORKS')
 
+# Dataverse installation URL
+dataverse_url = os.environ['DATAVERSE_URL']
 # Filename version of your institution's name
 my_institution_filename = os.environ['INSTITUTION_FILENAME']
 # Condition based on 'only_my_institution' toggle
@@ -51,6 +53,11 @@ else:
     institution_filename = 'all-institutions'
 # Short-hand version of your institution's name
 my_institution_short_name = os.environ['MY_INSTITUTION']
+
+# Institutions to query
+institutions = config['INSTITUTION']['ROR_MAP']
+## If specific subtrees (nested collections) are to be targeted
+subtree_map = config['INSTITUTION'].get('SUBTREE_MAP', {})
 
 print(f'String to add to filenames: {my_institution_filename}.\n')
 print(f'Short hand version of institution name: {my_institution_short_name}.\n')
@@ -101,9 +108,9 @@ else:
     os.mkdir("outputs/old-outputs")
     print("old outputs directory has been created\n")
 for filename in os.listdir('outputs'):
-    if os.path.isfile(os.path.join('outputs', filename)) and not filename.startswith(today):
+    if os.path.isfile(os.path.join('outputs', filename)) and not is_recent_file(filename):
         shutil.move(os.path.join('outputs', filename), os.path.join('outputs/old-outputs', filename))
-print(f'Files not generated on {today} have been moved to the old-outputs subdirectory.\n')
+print('Files older than 14 days have been moved to the old-outputs subdirectory.\n')
 
 # Load existing ROR mapping for affiliation re-curation
 ## Only purpose of loading in this script is to add new affiliations
@@ -130,7 +137,7 @@ else:
 
 print('Beginning to define API call parameters.\n')
 
-url_dataverse = 'https://dataverse.tdl.org/api/search/'
+url_dataverse = f'{dataverse_url}/api/search/'
 # Filter for only published datasets
 status = 'publicationStatus:Published'
 
@@ -152,160 +159,15 @@ headers_dataverse = {
     'X-Dataverse-key': os.environ['DATAVERSE_TOKEN']
 }
 
-params_dataverse_ut_austin = {
+base_params_datasets = {
     'q': query,
     'fq': status,
-    'subtree': 'utexas',
     'type': 'dataset',
     'start': page_start_dataset,
     'page': page_increment_dataset,
     'per_page': page_limit_dataset
 }
-params_dataverse_baylor = {
-    'q': query,
-    'fq': status,
-    'subtree': 'baylor',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_lamar = {
-    'q': query,
-    'fq': status,
-    'subtree': 'lamar',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_smu = {
-    'q': query,
-    'fq': status,
-    'subtree': 'smu',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_tamu = {
-    'q': query,
-    'fq': status,
-    'subtree': 'tamu',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_txst = {
-    'q': query,
-    'fq': status,
-    'subtree': 'txst',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_ttu = {
-    'q': query,
-    'fq': status,
-    'subtree': 'ttu',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_houston = {
-    'q': query,
-    'fq': status,
-    'subtree': 'uh',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_hscfw = {
-    'q': query,
-    'fq': status,
-    'subtree': 'unthsc',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_tamug = {
-    'q': query,
-    'fq': status,
-    'subtree': 'tamug',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_tamui = {
-    'q': query,
-    'fq': status,
-    'subtree': 'tamiu',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_utsah = {
-    'q': query,
-    'fq': status,
-    'subtree': 'uthscsa',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_utswm = {
-    'q': query,
-    'fq': status,
-    'subtree': 'utswmed',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_uta = {
-    'q': query,
-    'fq': status,
-    'subtree': 'uta',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-params_dataverse_twu = {
-    'q': query,
-    'fq': status,
-    'subtree': 'twu',
-    'type': 'dataset',
-    'start': page_start_dataset,
-    'page': page_increment_dataset,
-    'per_page': page_limit_dataset
-}
-
-all_params_datasets = {
-        'UT Austin': params_dataverse_ut_austin,
-        'Baylor': params_dataverse_baylor,
-        'Lamar': params_dataverse_lamar,
-        'SMU': params_dataverse_smu,
-        'TAMU': params_dataverse_tamu,
-        'Texas State': params_dataverse_txst,
-        'Texas Tech': params_dataverse_ttu,
-        'Houston': params_dataverse_houston,
-        'HSC Fort Worth': params_dataverse_hscfw,
-        'TAMU Galveston': params_dataverse_tamug,
-        'TAMU International': params_dataverse_tamui,
-        'UT San Antonio Health': params_dataverse_utsah,
-        'UT Southwestern Medical': params_dataverse_utswm,
-        'UT Arlington': params_dataverse_uta,
-        "Texas Woman's University": params_dataverse_twu
-    }
-
+all_params_datasets = build_institution_params(base_params_datasets, institutions, subtree_map)
 
 #substitute for your institution
 if only_my_institution:
@@ -373,155 +235,14 @@ query = '*'
 page_start_dataverse = config['VARIABLES']['PAGE_STARTS']['dataverse']
 page_increment_dataverse = config['VARIABLES']['PAGE_INCREMENTS']['dataverse']
 
-params_dataverse_ut_austin = {
+base_params_dataverses = {
     'q': query,
-    'subtree': 'utexas',
     'type': 'dataverse',
     'start': page_start_dataverse,
     'page': page_increment_dataverse,
     'per_page': page_limit_dataverse
 }
-
-params_dataverse_baylor = {
-    'q': query,
-    'subtree': 'baylor',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_lamar = {
-    'q': query,
-    'subtree': 'lamar',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_smu = {
-    'q': query,
-    'subtree': 'smu',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_tamu = {
-    'q': query,
-    'subtree': 'tamu',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_txst = {
-    'q': query,
-    'subtree': 'txst',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_ttu = {
-    'q': query,
-    'subtree': 'ttu',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_houston = {
-    'q': query,
-    'subtree': 'uh',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_hscfw = {
-    'q': query,
-    'subtree': 'unthsc',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_tamug = {
-    'q': query,
-    'subtree': 'tamug',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-params_dataverse_tamui = {
-    'q': query,
-    'subtree': 'tamiu',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-params_dataverse_utsah = {
-    'q': query,
-    'subtree': 'uthscsa',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-params_dataverse_utswm = {
-    'q': query,
-    'subtree': 'utswmed',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_uta = {
-    'q': query,
-    'subtree': 'uta',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-params_dataverse_twu = {
-    'q': query,
-    'subtree': 'twu',
-    'type': 'dataverse',
-    'start': page_start_dataverse,
-    'page': page_increment_dataverse,
-    'per_page': page_limit_dataverse
-}
-
-all_params_dataverses = {
-        'UT Austin': params_dataverse_ut_austin,
-        'Baylor': params_dataverse_baylor,
-        'Lamar': params_dataverse_lamar,
-        'SMU': params_dataverse_smu,
-        'TAMU': params_dataverse_tamu,
-        'Texas State': params_dataverse_txst,
-        'Texas Tech': params_dataverse_ttu,
-        'Houston': params_dataverse_houston,
-        'HSC Fort Worth': params_dataverse_hscfw,
-        'TAMU Galveston': params_dataverse_tamug,
-        'TAMU International': params_dataverse_tamui,
-        'UT San Antonio Health': params_dataverse_utsah,
-        'UT Southwestern Medical': params_dataverse_utswm,
-        'UT Arlington': params_dataverse_uta,
-        "Texas Women's University": params_dataverse_twu
-    }
+all_params_dataverses = build_institution_params(base_params_dataverses, institutions, subtree_map)
 
 if only_my_institution:
     params_list = {
@@ -560,7 +281,7 @@ df_datasets_dataverses = pd.merge(df_data_dataverse_search_select, df_dataverses
 # Retrieving additional metadata for deposits
 ## If a previously published dataset is currently in DRAFT state, it will return the information for the DRAFT (most current) state
 print('Starting Native API call\n')
-url_dataverse_native = 'https://dataverse.tdl.org/api/datasets/'
+url_dataverse_native = f'{dataverse_url}/api/datasets/'
 
 print(f'Total datasets to be analyzed: {len(df_datasets_dataverses)}.\n')
 
@@ -598,12 +319,12 @@ if first_timeouts:
         except requests.exceptions.Timeout:
             second_timeouts.append(doi)
         except requests.exceptions.RequestException as e:
-            second_timeouts.append({"doi": doi, "reason": str(e)})
+            final_timeouts.append({"doi": doi, "reason": str(e)})
 
 if second_timeouts:
-    print(f"\n--- Retrying {len(first_timeouts)} repeat timeouts with 10s limit ---\n")
-    time.sleep(2) 
-    for doi in first_timeouts:
+    print(f"\n--- Retrying {len(second_timeouts)} repeat timeouts with 10s limit ---\n")
+    time.sleep(2)
+    for doi in second_timeouts:
         try:
             response = requests.get(f'{url_dataverse_native}:persistentId/?persistentId=doi:{doi}', headers=headers_dataverse, timeout=10)
             if response.status_code == 200:
@@ -666,6 +387,7 @@ for item in data_dataverse_native['datasets']:
     relations = None
     dois = None
     urls = None
+    related_works_count = 0
     for field in fields:
         if field['typeName'] == 'subject':
             subjects = field.get('value', [])
@@ -722,6 +444,7 @@ for item in data_dataverse_native['datasets']:
             relations = []
             dois = []
             urls = []
+            related_works_count = len(field.get('value', []))
             for pub in field.get('value', []):
                 citation = pub.get('publicationCitation', {}).get('value', None)
                 relation_value = pub.get('publicationRelationType', {}).get('value', None)   
@@ -782,7 +505,8 @@ for item in data_dataverse_native['datasets']:
         'related_works_citations': citations,
         'related_works_dois': dois,
         'related_works_urls': urls,
-        'related_works_types': relations
+        'related_works_types': relations,
+        'related_works_count': related_works_count
     }
     data_dataverse_native_select.append(base_entry)
 
@@ -849,7 +573,7 @@ if recurate_punctuation:
 # ============================================
 if recurate_licenses:
     # If license is not CC0
-    df_select_concatenated['flag_funding'] = df_select_concatenated['license'] != 'CC0 1.0'
+    df_select_concatenated['flag_license'] = df_select_concatenated['license'] != 'CC0 1.0'
 
 # ============================================
 # Keyword malformatting
@@ -908,8 +632,11 @@ if recurate_works:
 
     # If a DOI is listed but the full URL is not (or vice versa)
     ## Not splitting these as flags for now since the impact of having only one isn't clear
-    df_select_concatenated['flag_work_url'] = (df_select_concatenated['related_works_dois'].notna()) & (df_select_concatenated['related_works_urls'].isna() | 
+    df_select_concatenated['flag_work_url'] = (df_select_concatenated['related_works_dois'].notna()) & (df_select_concatenated['related_works_urls'].isna() |
      (df_select_concatenated['related_works_urls'].str.strip() == '')) | (df_select_concatenated['related_works_urls'].notna()) & (df_select_concatenated['related_works_dois'].isna() | (df_select_concatenated['related_works_dois'].str.strip() == ''))
+
+    # If the only related work listed is a preprint (bioRxiv/arXiv), suggesting the published version isn't linked yet
+    df_select_concatenated['flag_work_preprint'] = (df_select_concatenated['related_works_count'] == 1) & df_select_concatenated['related_works_citations'].str.contains('biorxiv|arxiv', case=False, na=False)
 
 # Composite flag column
 ## Dynamic list of columns will handle any combination of enabled flagging
@@ -918,7 +645,7 @@ if flags_cols:
     df_select_concatenated['flagged_any'] = df_select_concatenated[flags_cols].any(axis=1)
     df_select_concatenated['flags'] = df_select_concatenated[flags_cols].sum(axis=1)
 
-base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_rors', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
+base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_rors', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls', 'related_works_count']
 
 # Resetting list of columns to include 'flagged_any' and 'flags'
 flags_cols = [col for col in df_select_concatenated.columns if col.startswith('flag')]
@@ -992,10 +719,12 @@ if recurate_orcid:
         ) & df_author_entries['author_identifier'].str.contains('orcid.org/00', na=False) & ~df_author_entries['author_identifier'].str.contains('http', na=False)
     
     ### ORCID present but not hyperlinked (short form; not a problem per se, but might as well standardize)
-    df_author_entries['subpar_orcid_no_url'] = (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID'
-        ) & ~df_author_entries['author_identifier'].str.contains('https://orcid.org/00', na=False
-        ) & (df_author_entries['author_identifier'].notna()
-        ) & df_author_entries['author_identifier'].str.contains('-', na=False)
+    df_author_entries['subpar_orcid_no_url'] = (
+        (df_author_entries['author_identifier_scheme'].str.upper() == 'ORCID') &
+        df_author_entries['author_identifier'].notna() &
+        df_author_entries['author_identifier'].str.contains('-', na=False) &
+        ~df_author_entries['author_identifier'].str.contains(r'https?://orcid\.org/\s*00', na=False, regex=True)
+    )
 
     ### ORCID present but using http instead of https (not really a problem but might as well standardize)
     df_author_entries['subpar_orcid_http'] = df_author_entries['author_identifier'].str.contains('http://orcid.org/', na=False)
@@ -1029,6 +758,12 @@ if recurate_names:
     )
     ### Malformed initial (standalone initial without period)
     df_author_entries['malformed_name_initial'] = df_author_entries['author_name'].str.contains(r'(?:^|\s)(?<!\')[A-Z](?:\s|,|$)(?!\.)', regex=True)
+
+    ### Malformed case
+    df_author_entries['malformed_name_case'] = (
+            (df_author_entries['author_name'].str.islower() | df_author_entries['author_name'].str.isupper()) &
+            (df_author_entries['author_name'].str.split().str.len() > 1)
+            )
     
     ### Edge cases
     #### Semi-colon instead of comma for name divider and ALL CAPS
@@ -1040,10 +775,6 @@ if recurate_names:
     flags_cols = [col for col in df_author_entries.columns if col.startswith('malformed_name')]
     if flags_cols:
         df_author_entries['flag_name'] = df_author_entries[flags_cols].any(axis=1)
-    df_author_entries['malformed_name_case'] = (
-    (df_author_entries['author_name'].str.islower() | df_author_entries['author_name'].str.isupper()) &
-    (df_author_entries['author_name'].str.split().str.len() > 1)
-    )
 
 ## Summarizing author-related flags
 flags_cols = [col for col in df_author_entries.columns if col.startswith('flag')]
@@ -1054,7 +785,7 @@ if flags_cols:
 df_author_entries.to_csv(f'outputs/{today}_{institution_filename}_all-authors-PUBLISHED.csv', index=False, encoding='utf-8-sig')
 
 # Create expanded authors df with contact/depositor info for filtering
-df_dataset_select = df_select_concatenated_pruned[['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']]
+df_dataset_select = df_select_concatenated_pruned[['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls', 'related_works_count']]
 df_author_entries_expanded = pd.merge(df_author_entries, df_dataset_select, on='doi', how='left')
 df_author_entries_expanded.to_csv(f'outputs/{today}_{institution_filename}_all-authors-datasets-PUBLISHED.csv', index=False, encoding='utf-8-sig')
 
@@ -1073,7 +804,7 @@ df_authors_aggregated = df_author_entries.groupby('doi').agg(**agg_dict).reset_i
 df_combined = pd.merge(df_select_concatenated_pruned, df_authors_aggregated, on='doi', how='left')
 
 # Create pruned output of datasets with some author information added
-base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls']
+base_cols = ['institution', 'dataset_id', 'doi', 'publication_date', 'version_id', 'total_version','current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'keywords', 'keywords_vocab', 'grant_agencies', 'grant_numbers', 'dataset_depositor', 'dataset_contact', 'dataset_email', 'license', 'related_works_citations', 'related_works_dois', 'related_works_urls', 'related_works_count']
 
 # Resetting list of columns to include 'flagged_any' and 'flags'
 flags_cols = [col for col in df_combined.columns if col.startswith('flag_')]

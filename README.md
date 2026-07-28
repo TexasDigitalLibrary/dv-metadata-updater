@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.5.0
-* *Released*: 2026/07/17
+* *Version*: 1.6.0
+* *Released*: 2026/07/28
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/07/17
+* *README last updated*: 2026/07/28
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -14,10 +14,11 @@
 3. [Contents](#contents)
 4. [Outputs](#outputs)
 5. [Development](#development)
-6. [Version notes](#version--notes)
+6. [Re-use](#re-use)
+7. [Version notes](#version--notes)
 
 ## Purpose
-This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the [Texas Data Repository](https://dataverse.tdl.org/), a multi-institutional installation, but should be easily repurposeable for other installations. Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). Standardizing funders against ROR is in development. It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review. Any of the automated components can also be done or enhanced manually.
+This repository contains scripts to facilitate semi- to fully-automated metadata recuration in a Dataverse installation. It was designed in the specific context of the [Texas Data Repository](https://dataverse.tdl.org/), a multi-institutional installation, but should be easily repurposeable for other installations (see Re-use). Currently, it is capable of flagging and remediating missing or malformatted ORCIDs, missing ROR identifiers, malformatted keywords (entered in one semi-colon- or comma-delimited string), malformatted titles (ending in blank space or with period), and non-standardized author names (missing middle initials, not in Last, First order). Standardizing funders against ROR is in development. It is also capable of flagging, but not remediating, non-CC0 licensing that might need to be converted from a 'Custom Terms' designation to the formal license and datasets where a related work probably exists but is not hard-coded into the metadata - these two require manual review. Any of the automated components can also be done or enhanced manually.
 
 ## Setup
 This project uses [uv](https://docs.astral.sh/uv/) for package management. To get started:
@@ -52,7 +53,7 @@ The config file contains semi-static to static parameters that are unlikely to n
 
 | File | Content |
 |------|---------|
-| `INSTITUTION` | Contains static parameters for institutions; currently only the map of institutional names to ROR identifiers. |
+| `INSTITUTION` | Contains static parameters for institutions; currently only the map of institutional names to ROR identifiers and the map of institutional names to subtrees. |
 | `EXCLUDED` | Contains a custom list of people names for systematically excluding any datasets with these names in the depositor or contact fields from any re-curation. Can be blank.|
 | `PEOPLE_CONDITIONAL` | Similar to the above field, but re-curation is conditional on both the occurrence of these names in either field and other metadata fields. Can be blank. |
 | `VARIABLES`| Contains parameters for the Dataverse API. These likely do not be adjusted (and page start and page increment should not be changed). The only ones that may warrant changing are `dataverse_test`, which controls the size of the retrieval for a test run.|
@@ -117,7 +118,23 @@ This script does not generate any output files.
 ## Development
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
+## Re-use
+### Another TDR institution
+1. Modify the `.env.example` file and rename it. You will need to modify `INSTITUTION_FILENAME` (can be whatever you want), `MY_INSTITUTION` (**must correspond to a value in the `config.json` file [e.g., UT Austin, Baylor]), and add your own `DATAVERSE_TOKEN`. If you want to auto-draft emails through this workflow, you will need to modify the four user parameters as well. Refer to other parts of the README to understand what the various toggles do. 
+2. Modify the `config.json` file. You may not need to modify anything here. If you want to omit a batch a datasets based on depositor, then modify `EXCLUDED` and `PEOPLE_CONDITIONAL` accordingly. All other parameters should not need to be changed.
+
+### Another multi-institution installation
+In addition to the above steps for another TDR institution:
+1. Change `DATAVERSE_URL` in the `.env` file.
+2. Create the ROR and subtree maps in `config.json`. The key-value pairs for ROR need to be in this format - "Freeform name": "https://ror.org/{identifier}. The freeform name can be whatever, but generally shorter is better than full name because this name is called elsewhere (e.g., `MY_INSTITUTION` in `.env`). Each institution that could be sampled should be added here. For the subtree maps, the format needs to be - "Freeform name": "{collection alias}". The 'subtree' is really just the alias for the collection you want to target, so it could be at any level of collection that you want.
+
+### A single-institution installation
+In addition to the above steps for another TDR institution:
+1. Change `DATAVERSE_URL` in the `.env` file.
+2. Create the ROR map in `config.json`. The key-value pair for ROR needs to be in this format - "Freeform name": "https://ror.org/{identifier}. The freeform name can be whatever, but generally shorter is better than full name because this name is called elsewhere (e.g., `MY_INSTITUTION` in `.env`). The subtree map can be left blank unless you want to specify a certain collection.
+
 ## Version notes
+* **Version 1.6.0** is a moderate update. It refactors the parameters used to search an installation for datasets and dataverses to make it more flexible for adoption in other Dataverse installations that might not care about filtering on specific subtrees. It also makes some minor bug fixes and refactoring for Boolean flagging. The code to move older outputs into a subdirectory has been relaxed a bit to use a 14-day cutoff instead of moving anything not created on that day; this would be important for doing comparisons of pre- and post-process. A new flag has been added where there is one related publication linked, but it's a preprint (possibly the VOR is out there). The workflow summary has been expanded to include some assessment of select fields between two time intervals, not just two static points, to see if re-curation inadvertently led to improved PID usage.
 * **Version 1.5.0** is a minor update. It makes some bug fixes to address inaccurate Boolean flag creation but mainly reworks some code to be more accurate in how the flags are created and generalizes the codebase (to an extent) to avoid mention of TDR or UT Austin.
 * **Version 1.4.0** is a significant update. It mainly address tech debt, including adding *uv* for package management, overhauling the config/env file to separate parameters/credentials, and adding several safeguards to ensure functionality when using a test environment. Functionality to identify, match, and add ROR identifiers for funding agencies has also been added. This README has also been restructured
 * **Version 1.3.2** is mainly to update the README but did update some scripts to match the filenames of outputs as listed in the README.

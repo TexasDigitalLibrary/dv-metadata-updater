@@ -2,12 +2,34 @@ import math
 import os
 import pandas as pd
 import requests
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
 def env_bool(key, default=False):
     return os.environ.get(key, str(default)).strip().lower() in ('true', '1', 'yes')
+
+# Build one API params dict per institution, adding a subtree filter only for institutions that have one configured
+def build_institution_params(base_params, institutions, subtree_map):
+    params_list = {}
+    for name in institutions:
+        params = base_params.copy()
+        subtree = subtree_map.get(name)
+        if subtree:
+            params['subtree'] = subtree
+        params_list[name] = params
+    return params_list
+
+# Whether a file should stay put (True) or be archived to an 'old-*' subdirectory (False)
+# Files without a leading YYYYMMDD_ date are treated as not recent, matching prior behavior
+def is_recent_file(filename, days=14, reference_date=None):
+    reference_date = reference_date or datetime.now()
+    try:
+        file_date = datetime.strptime(filename[:8], '%Y%m%d')
+    except ValueError:
+        return False
+    return (reference_date - file_date).days < days
 
 # Retrieves single page of Dataverse results
 def retrieve_page_dataverse(url, params=None, headers=None):
@@ -66,26 +88,29 @@ def retrieve_all_institutions(url, params_list, headers, page_start, per_page, p
 
     return all_data
 
-# Standard function to look for file with specified pattern in name in specified directory
-def load_most_recent_file(outputs_dir, pattern):
-    files = os.listdir(outputs_dir)
-    files.sort(reverse=True)
+# Standard function to look for file with specified pattern in name in specified directory, optionally also checking a fallback directory
+def load_most_recent_file(outputs_dir, pattern, fallback_dir=None):
+    directories = [outputs_dir] + ([fallback_dir] if fallback_dir else [])
 
-    latest_file = None
-    for file in files:
-        if pattern in file:
-            latest_file = file
-            break
+    candidates = []
+    for directory in directories:
+        if not os.path.isdir(directory):
+            continue
+        for file in os.listdir(directory):
+            if pattern in file:
+                candidates.append((file, directory))
+    candidates.sort(reverse=True)
 
-    if not latest_file:
-        print(f"No file with '{pattern}' was found in the directory '{outputs_dir}'.\n")
+    if not candidates:
+        print(f"No file with '{pattern}' was found in {' or '.join(directories)}.\n")
         return None
     else:
-        file_path = os.path.join(outputs_dir, latest_file)
+        latest_file, directory = candidates[0]
+        file_path = os.path.join(directory, latest_file)
         df = pd.read_csv(file_path)
-        print(f"The most recent file '{latest_file}' has been loaded successfully.\n")
+        print(f"The most recent file '{latest_file}' has been loaded successfully from '{directory}'.\n")
         return df
-    
+
 # Standard function to return the 'nth' file with specified pattern in name in specified directory (starts at 1)
 def load_nth_most_recent_file(outputs_dir, pattern, n=1):
     files = os.listdir(outputs_dir)
@@ -102,7 +127,24 @@ def load_nth_most_recent_file(outputs_dir, pattern, n=1):
         df = pd.read_csv(file_path)
         print(f"The {n}{'st' if n==1 else 'nd' if n==2 else 'rd' if n==3 else 'th'} most recent file '{nth_file}' has been loaded successfully.\n")
         return df
-    
+
+# Load the file matching a specific date string in its filename, checking outputs_dir first and falling back to old_outputs_dir
+def load_file_by_date(outputs_dir, old_outputs_dir, pattern, date_str):
+    if not date_str:
+        raise ValueError(f"No date provided to search for a file matching pattern '{pattern}'.")
+
+    for directory in (outputs_dir, old_outputs_dir):
+        if not os.path.isdir(directory):
+            continue
+        for file in os.listdir(directory):
+            if date_str in file and pattern in file:
+                file_path = os.path.join(directory, file)
+                df = pd.read_csv(file_path)
+                print(f"The file '{file}' matching date '{date_str}' has been loaded successfully from '{directory}'.\n")
+                return df
+
+    raise FileNotFoundError(f"No file matching date '{date_str}' and pattern '{pattern}' was found in '{outputs_dir}' or '{old_outputs_dir}'.")
+
 # Validate formatting of ORCID and ROR in metadata
 def is_valid_orcid(orcid):
     # ORCID must be a URL not just the string and not have a space after the shoulder

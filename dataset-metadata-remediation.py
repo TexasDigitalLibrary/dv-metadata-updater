@@ -6,7 +6,7 @@ import re
 import shutil
 from datetime import datetime
 from rapidfuzz import process, fuzz
-from utils import env_bool, load_most_recent_file
+from utils import env_bool, is_recent_file, load_most_recent_file
 
 # ============================================
 #           WORKFLOW SET-UP
@@ -64,9 +64,9 @@ else:
     os.mkdir(old_outputs_dir)
     print("old outputs directory has been created\n")
 for filename in os.listdir(outputs_dir):
-    if os.path.isfile(os.path.join(outputs_dir, filename)) and not filename.startswith(today):
+    if os.path.isfile(os.path.join(outputs_dir, filename)) and not is_recent_file(filename):
         shutil.move(os.path.join(outputs_dir, filename), os.path.join(old_outputs_dir, filename))
-print(f'Files not generated on {today} have been moved to the old-outputs subdirectory.\n')
+print('Files older than 14 days have been moved to the old-outputs subdirectory.\n')
 
 
 # Load most recent version of dataset-authors file
