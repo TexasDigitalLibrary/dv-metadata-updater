@@ -1,12 +1,13 @@
 import json
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import os
 import pandas as pd
-from datetime import datetime
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
+import re
 import shutil
-from utils import env_bool, load_most_recent_file, load_nth_most_recent_file
+from datetime import datetime
+from utils import env_bool, is_recent_file, load_most_recent_file, load_nth_most_recent_file, load_file_by_date
 
 # ============================================
 #               WORKFLOW SET-UP
@@ -21,8 +22,10 @@ today = datetime.now().strftime('%Y%m%d')
 with open('config.json', 'r') as file:
     config = json.load(file)
 
-# Test environment (incomplete run, faster to complete)
+# Test environment (only for finding the right data)
 test = env_bool('TEST_ENVIRONMENT')
+# Whether to compare pre- and post-re-curation metrics
+time_analysis = env_bool('TIMEFRAME_ANALYSIS')
 
 # Get directories
 script_dir = os.getcwd()
@@ -51,9 +54,9 @@ else:
     print("old plots directory has been created\n")
 #move plots not created today to that folder
 for filename in os.listdir('plots'):
-    if os.path.isfile(os.path.join('plots', filename)) and not filename.startswith(today):
+    if os.path.isfile(os.path.join('plots', filename)) and not is_recent_file(filename):
         shutil.move(os.path.join('plots', filename), os.path.join('plots/old-plots', filename))
-print(f'Files not generated on {today} have been moved to the old-plots subdirectory.\n')
+print('Plots older than 14 days have been moved to the old-plots subdirectory.\n')
 
 # ============================================
 #               FILE LOAD-IN
@@ -72,6 +75,21 @@ authors_post = load_most_recent_file(outputs_dir, pattern)
 
 # Load second most recent version of authors file
 authors_pre = load_nth_most_recent_file(outputs_dir, pattern, n=2)
+
+# ORCID format classification (correctly formatted entries only)
+## This step is only necessary for reproducing the plots associated with the manuscript
+_short = re.compile(r'^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$')
+_long  = re.compile(r'^https?://orcid\.org/\d{4}-\d{4}-\d{4}-\d{3}[\dX]$')
+_id = authors_post['author_identifier'].fillna('').str.strip()
+authors_post['orcid_format'] = (
+    _id.map(lambda v: 'none' if v == '' else 'short form' if _short.match(v) else 'long form' if _long.match(v) else 'not recognized')
+)
+authors_post['orcid_valid'] = authors_post['orcid_format'].isin(['short form', 'long form'])
+_id = authors_pre['author_identifier'].fillna('').str.strip()
+authors_pre['orcid_format'] = (
+    _id.map(lambda v: 'none' if v == '' else 'short form' if _short.match(v) else 'long form' if _long.match(v) else 'not recognized')
+)
+authors_pre['orcid_valid'] = authors_pre['orcid_format'].isin(['short form', 'long form'])
 
 # Only retain datasets published prior to re-curation began
 datasets_post_filtered = datasets_post[datasets_post['doi'].isin(datasets_pre['doi'])]
@@ -299,7 +317,7 @@ print()
 
 # List the proportions
 ## Order matters! The order in the two lists needs to be the same.
-metric_names = ['Related publication (identifier)', 'Related publication (URL)', 'Related publication (citation)', 'All authors w/ RORs', 'All authors w/ ORCIDs', 'Keywords properly formatted', 'Title properly formatted', ]
+metric_names = ['Publication (identifier)', 'Publication (URL)', 'Publication (citation)', 'All authors w/ RORs', 'All authors w/ ORCIDs', 'Keyword (proper format)', 'Title (proper format)']
 pre_proportions = [
     results_datasets['pre']['identifier_proportion'],
     results_datasets['pre']['url_proportion'],
@@ -320,9 +338,7 @@ post_proportions = [
 ]
 
 plot_filename = f"{today}_dataset-level-summary.png"
-fig, ax = plt.subplots(figsize=(12, 6.75))
-plot_width = 6.0  # inches
-plot_height = 3.5  # inches
+fig, ax = plt.subplots(figsize=(8, 6))
 
 y_positions = np.arange(len(metric_names))
 
@@ -332,8 +348,8 @@ circle_offset = 0.02
 # Draw connector lines with arrows - offset from circle edges
 for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
     ax.annotate('', xy=(post - circle_offset, i), xytext=(pre + circle_offset, i),
-                arrowprops=dict(arrowstyle='->', lw=2.5, color="#323A56", 
-                               mutation_scale=15))
+                arrowprops={'arrowstyle': '->', 'lw': 1.5, 'color': "#323A56", 
+                            'mutation_scale': 15})
 # Plot pre dots
 ax.scatter(pre_proportions, y_positions, s=150, color="#FFC20A", 
            label='Before', zorder=3, edgecolors='black', linewidth=1.5)
@@ -343,35 +359,35 @@ ax.scatter(post_proportions, y_positions, s=150, color='#0C7BDC',
 
 # Add value labels and improvement percentages
 for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
-    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=12, fontweight='bold')
-    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=12, fontweight='bold')
+    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=9, fontweight='bold')
+    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=9, fontweight='bold')
     
     improvement = (post - pre) * 100
     mid_point = (pre + post) / 2
     ax.text(mid_point, i + 0.25, f'+{improvement:.1f}%', ha='center', 
-            fontsize=10, color="#58A4DE", fontweight='bold',
-            bbox=dict(boxstyle='round,pad=0.3', facecolor='#E8F8F5', edgecolor="#2737AE"))
+            fontsize=9, color="#58A4DE", fontweight='bold',
+            bbox={'boxstyle': 'round,pad=0.3', 'facecolor': '#E8F8F5', 'edgecolor': "#2737AE"})
 
 ax.set_yticks(y_positions)
-ax.set_yticklabels(metric_names, fontsize=12)
-ax.set_xlabel('Proportion of datasets', fontsize=14, fontweight='bold')
+ax.set_yticklabels(metric_names, fontsize=10)
+ax.set_xlabel('Proportion of datasets', fontsize=11, fontweight='bold')
 ax.xaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
-ax.set_title('Dataset-level attributes', fontsize=16, fontweight='bold', pad=5)
+ax.set_title('Dataset-level attributes', fontsize=12, fontweight='bold', pad=5)
 ax.set_xlim(-0.1, 1.15)
 ax.set_ylim(-0.2, len(metric_names) - 0.5)
 ax.set_facecolor('#f7f7f7')
 ax.grid(True, which='both', color='white', linestyle='-', linewidth=1.5)
-ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.20), fontsize=11, 
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.20), fontsize=10, 
           framealpha=0.9, ncol=2, frameon=True)
 # plt.tight_layout()
 fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.15)
 plot_path = os.path.join(plots_dir, plot_filename)
-plt.savefig(plot_path, dpi=300)
+plt.savefig(plot_path, dpi=1200)
 print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
 # plt.show()
 
 # Extract the three proportions
-metric_names = ['ORCID (properly formatted)', 'Any author identifier', 'ROR-matched affiliation','Author name punctuation', 'Author name order']
+metric_names = ['ORCID (proper format)', 'Any author identifier', 'ROR-matched affiliation','Author name punctuation', 'Author name order']
 pre_proportions = [
     results_authors['pre']['orcid_valid_proportion'],
     results_authors['pre']['identifier_proportion'],
@@ -388,7 +404,7 @@ post_proportions = [
 ]
 
 plot_filename = f"{today}_author-level-summary.png"
-fig, ax = plt.subplots(figsize=(12, 6.75))
+fig, ax = plt.subplots(figsize=(8,6))
 
 y_positions = np.arange(len(metric_names))
 
@@ -399,8 +415,8 @@ circle_offset = 0.02
 # Draw connector lines with arrows - offset from circle edges
 for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
     ax.annotate('', xy=(post - circle_offset, i), xytext=(pre + circle_offset, i),
-                arrowprops=dict(arrowstyle='->', lw=2.5, color="#000000", 
-                               mutation_scale=15))
+                arrowprops={'arrowstyle': '->', 'lw': 1.5, 'color': "#000000", 
+                           'mutation_scale': 15})
 # Plot pre dots
 ax.scatter(pre_proportions, y_positions, s=150, color="#FFC20A", 
            label='Before', zorder=3, edgecolors='black', linewidth=1.5)
@@ -410,30 +426,30 @@ ax.scatter(post_proportions, y_positions, s=150, color='#0C7BDC',
 
 # Add value labels and improvement percentages
 for i, (pre, post) in enumerate(zip(pre_proportions, post_proportions)):
-    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=12, fontweight='bold')
-    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=12, fontweight='bold')
+    ax.text(pre - 0.03, i - 0.05, f'{pre:.1%}', ha='right', fontsize=9, fontweight='bold')
+    ax.text(post + 0.03, i - 0.05, f'{post:.1%}', ha='left', fontsize=9, fontweight='bold')
     
     improvement = (post - pre) * 100
     mid_point = (pre + post) / 2
     ax.text(mid_point, i + 0.25, f'+{improvement:.1f}%', ha='center', 
-            fontsize=10, color="#58A4DE", fontweight='bold',
-            bbox=dict(boxstyle='round,pad=0.3', facecolor='#E8F8F5', edgecolor="#2737AE"))
+            fontsize=9, color="#58A4DE", fontweight='bold',
+            bbox={'boxstyle': 'round,pad=0.3', 'facecolor': '#E8F8F5', 'edgecolor': "#2737AE"})
 
 ax.set_yticks(y_positions)
-ax.set_yticklabels(metric_names, fontsize=12)
-ax.set_xlabel('Proportion of authors', fontsize=14, fontweight='bold')
+ax.set_yticklabels(metric_names, fontsize=10)
+ax.set_xlabel('Proportion of authors', fontsize=11, fontweight='bold')
 ax.xaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
-ax.set_title('Author-level attributes', fontsize=16, fontweight='bold', pad=5)
+ax.set_title('Author-level attributes', fontsize=12, fontweight='bold', pad=5)
 ax.set_xlim(-0.1, 1.15)
 ax.set_ylim(-0.2, len(metric_names) - 0.5)
 ax.set_facecolor("#f5f3f3")
 ax.grid(True, which='both', color='white', linestyle='-', linewidth=1.5)
-ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), fontsize=11, 
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), fontsize=10, 
           framealpha=0.9, ncol=2, frameon=True)
 # plt.tight_layout()
 fig.subplots_adjust(left=0.25, right=0.95, top=0.95, bottom=0.15)
 plot_path = os.path.join(plots_dir, plot_filename)
-plt.savefig(plot_path, dpi=300)
+plt.savefig(plot_path, dpi=1200)
 print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
 # plt.show()
 
@@ -518,3 +534,177 @@ print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
 #     print(f'✓ Anonymized export saved: {export_path}')
 
 # print(f'\nAll anonymized files saved to: {anonymized_dir}\n')
+
+# ============================================
+#        ORCID/ROR TIMEFRAME ANALYSIS
+# ============================================
+
+if time_analysis:
+    old_outputs_dir = os.path.join(outputs_dir, 'old-outputs')
+    pattern = '_all-authors-datasets-PUBLISHED'
+
+    # Pre-recuration snapshot, identified by its filename date
+    pre_recuration_date = os.environ['RECURATION_START']
+    authors_timeframe_pre = load_file_by_date(outputs_dir, old_outputs_dir, pattern, pre_recuration_date)
+    authors_timeframe_pre['publication_date'] = pd.to_datetime(authors_timeframe_pre['publication_date'], errors='coerce')
+
+    # Most recent snapshot available
+    authors_timeframe_post = load_most_recent_file(outputs_dir, pattern, fallback_dir=old_outputs_dir)
+    authors_timeframe_post['publication_date'] = pd.to_datetime(authors_timeframe_post['publication_date'], errors='coerce')
+
+    # Fixed publication-date window to subset the pre-recuration snapshot
+    ## This brackets the dates when the plug-ins were enabled and (temporarily) disabled
+    date_start = pd.Timestamp('2025-04-17')
+    date_end   = pd.Timestamp('2026-02-10')
+    # Fixed cutoff for the most recent snapshot: only datasets published after re-curation began
+    post_recuration_start = pd.Timestamp(os.environ['RECURATION_END'])
+
+    timeframe_dict = {
+        'pre': authors_timeframe_pre[
+            (authors_timeframe_pre['publication_date'] >= date_start) &
+            (authors_timeframe_pre['publication_date'] <= date_end) &
+            ~authors_timeframe_pre['dataset_depositor'].isin(excluded_people_set) &
+            ~authors_timeframe_pre['dataset_contact'].isin(excluded_people_set)
+        ],
+        'post': authors_timeframe_post[
+            (authors_timeframe_post['publication_date'] > post_recuration_start) &
+            ~authors_timeframe_post['dataset_depositor'].isin(excluded_people_set) &
+            ~authors_timeframe_post['dataset_contact'].isin(excluded_people_set)
+        ]
+    }
+
+    # Store results
+    results_timeframe = {}
+
+    for label, df_window in timeframe_dict.items():
+        author_count = len(df_window)
+        dataset_count = df_window['doi'].nunique()
+        missing_orcid_count = df_window['missing_orcid'].sum()
+        missing_ror_count   = df_window['missing_ror'].sum()
+        orcid_present_count = author_count - missing_orcid_count
+        ror_present_count   = author_count - missing_ror_count
+
+        results_timeframe[label] = {
+            'author_count': author_count,
+            'dataset_count': dataset_count,
+            'orcid_present_count': orcid_present_count,
+            'ror_present_count': ror_present_count
+        }
+
+        print(f'\n--- Timeframe Analysis ({label}) ---')
+        print(f'Total authors in window:  {author_count}')
+        print(f'Total datasets in window: {dataset_count}')
+        print(f'Authors with ORCID:       {orcid_present_count} ({orcid_present_count / author_count:.1%})')
+        print(f'Authors with ROR:         {ror_present_count} ({ror_present_count / author_count:.1%})')
+
+    # ============================================
+    #   TIMEFRAME ANALYSIS - REPEAT DEPOSITORS
+    # ============================================
+
+    # Depositors listed for multiple unique DOIs, identified before date filtering
+    repeat_depositors_pre = authors_timeframe_pre.groupby('dataset_depositor')['doi'].nunique()
+    repeat_depositors_pre = repeat_depositors_pre[repeat_depositors_pre > 1].index
+    authors_timeframe_pre_repeat = authors_timeframe_pre[authors_timeframe_pre['dataset_depositor'].isin(repeat_depositors_pre)]
+
+    repeat_depositors_post = authors_timeframe_post.groupby('dataset_depositor')['doi'].nunique()
+    repeat_depositors_post = repeat_depositors_post[repeat_depositors_post > 1].index
+    authors_timeframe_post_repeat = authors_timeframe_post[authors_timeframe_post['dataset_depositor'].isin(repeat_depositors_post)]
+
+    timeframe_dict_repeat = {
+        'pre': authors_timeframe_pre_repeat[
+            (authors_timeframe_pre_repeat['publication_date'] >= date_start) &
+            (authors_timeframe_pre_repeat['publication_date'] <= date_end) &
+            ~authors_timeframe_pre_repeat['dataset_depositor'].isin(excluded_people_set) &
+            ~authors_timeframe_pre_repeat['dataset_contact'].isin(excluded_people_set)
+        ],
+        'post': authors_timeframe_post_repeat[
+            (authors_timeframe_post_repeat['publication_date'] > post_recuration_start) &
+            ~authors_timeframe_post_repeat['dataset_depositor'].isin(excluded_people_set) &
+            ~authors_timeframe_post_repeat['dataset_contact'].isin(excluded_people_set)
+        ]
+    }
+
+    # Store results
+    results_timeframe_repeat = {}
+
+    for label, df_window in timeframe_dict_repeat.items():
+        author_count = len(df_window)
+        dataset_count = df_window['doi'].nunique()
+        missing_orcid_count = df_window['missing_orcid'].sum()
+        missing_ror_count   = df_window['missing_ror'].sum()
+        orcid_present_count = author_count - missing_orcid_count
+        ror_present_count   = author_count - missing_ror_count
+
+        results_timeframe_repeat[label] = {
+            'author_count': author_count,
+            'dataset_count': dataset_count,
+            'orcid_present_count': orcid_present_count,
+            'ror_present_count': ror_present_count
+        }
+
+        print(f'\n--- Timeframe Analysis, repeat depositors ({label}) ---')
+        print(f'Total authors in window:  {author_count}')
+        print(f'Total datasets in window: {dataset_count}')
+        print(f'Authors with ORCID:       {orcid_present_count} ({orcid_present_count / author_count:.1%})')
+        print(f'Authors with ROR:         {ror_present_count} ({ror_present_count / author_count:.1%})')
+
+    # ============================================
+    #        TIMEFRAME ANALYSIS - GRAPH
+    # ============================================
+
+    def _timeframe_proportions(results):
+        pre_count  = results['pre']['author_count']
+        post_count = results['post']['author_count']
+        pre_props = [
+            results['pre']['orcid_present_count'] / pre_count,
+            results['pre']['ror_present_count'] / pre_count
+        ]
+        post_props = [
+            results['post']['orcid_present_count'] / post_count,
+            results['post']['ror_present_count'] / post_count
+        ]
+        return pre_props, post_props
+
+    metric_names = ['ORCID', 'ROR']
+    facets = [
+        ('All depositors', results_timeframe),
+        ('Repeat depositors', results_timeframe_repeat)
+    ]
+
+    plot_filename = f"{today}_timeframe-summary.png"
+    fig, axes = plt.subplots(1, 2, figsize=(8, 6), sharey=True)
+
+    x = np.arange(len(metric_names))
+    bar_width = 0.35
+
+    for ax, (facet_title, results) in zip(axes, facets):
+        pre_props, post_props = _timeframe_proportions(results)
+
+        bars_pre = ax.bar(x - bar_width / 2, pre_props, bar_width, color="#FFC20A",
+                           label='Before', edgecolor='black', linewidth=1.5, zorder=3)
+        bars_post = ax.bar(x + bar_width / 2, post_props, bar_width, color='#0C7BDC',
+                            label='After', edgecolor='black', linewidth=1.5, zorder=3)
+
+        for bars in (bars_pre, bars_post):
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width() / 2, height + 0.02, f'{height:.1%}',
+                        ha='center', fontsize=9, fontweight='bold')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(metric_names, fontsize=10)
+        ax.set_title(facet_title, fontsize=12, fontweight='bold')
+        ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
+        ax.set_ylim(0, 1.15)
+        ax.set_facecolor('#f7f7f7')
+        ax.grid(True, axis='y', color='white', linestyle='-', linewidth=1.5)
+
+    axes[0].set_ylabel('Proportion of authors', fontsize=11, fontweight='bold')
+    fig.suptitle('Author identifier completeness by depositor group', fontsize=13, fontweight='bold')
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.03), fontsize=10,
+               framealpha=0.9, ncol=2, frameon=True)
+    fig.subplots_adjust(top=0.85, bottom=0.15, wspace=0.15)
+    plot_path = os.path.join(plots_dir, plot_filename)
+    plt.savefig(plot_path, dpi=1200, bbox_inches='tight')
+    print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')

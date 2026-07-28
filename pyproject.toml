@@ -5,6 +5,7 @@ description = "Dataverse metadata assessment, remediation, and update tooling"
 requires-python = ">=3.12"
 dependencies = [
     "matplotlib>=3.9.2",
+    "numpy>=2.1.0",
     "pandas>=2.2.2",
     "python-dotenv>=1.0.1",
     "rapidfuzz>=3.14.3",

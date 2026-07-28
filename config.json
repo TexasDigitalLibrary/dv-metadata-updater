@@ -16,6 +16,23 @@
             "UT Southwestern Medical": "https://ror.org/05byvp690",
             "UT Arlington": "https://ror.org/019kgqr73",
             "Texas Woman's University": "https://ror.org/04dyzkj40"
+        },
+        "SUBTREE_MAP": {
+            "UT Austin": "utexas",
+            "Baylor": "baylor",
+            "Lamar": "lamar",
+            "SMU": "smu",
+            "TAMU": "tamu",
+            "Texas State": "txst",
+            "Texas Tech": "ttu",
+            "Houston": "uh",
+            "HSC Fort Worth": "unthsc",
+            "TAMU Galveston": "tamug",
+            "TAMU International": "tamiu",
+            "UT San Antonio Health": "uthscsa",
+            "UT Southwestern Medical": "utswmed",
+            "UT Arlington": "uta",
+            "Texas Woman's University": "twu"
         }
     },
     "EXCLUDED":[
