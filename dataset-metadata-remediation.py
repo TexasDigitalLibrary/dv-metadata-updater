@@ -28,7 +28,7 @@ recurate_works = env_bool('RECURATION_WORKS')
 
 # Test environment (incomplete run, faster to complete)
 test = env_bool('TEST_ENVIRONMENT')
-## Restrict to your/one institution in TDR (True to restrict to your institution)
+## Restrict to your/one institution in a multi-institutional installation (True to restrict to your institution)
 only_my_institution = env_bool('ONLY_MY_INSTITUTION')
 # Filename version of your institution's name
 my_institution_filename = os.environ['INSTITUTION_FILENAME']
@@ -650,7 +650,7 @@ if recurate_orcid:
         first_orcid5 = grouped5.transform(lambda x: x.dropna().iloc[0] if len(x.dropna()) > 0 else pd.NA)
 
         # Exclude if parent dataverse is top-level
-        mask_not_ut = authors_merged['parent_dataverse'] != 'University of Texas at Austin Dataverse Collection'
+        mask_not_ut = authors_merged['parent_dataverse'] != os.environ['INSTITUTION_COLLECTION']
 
         mask_single5 = mask_still_missing & (unique_counts5 == 1) & authors_merged['orcid_url'].isna() & mask_not_ut
         mask_multiple5 = mask_still_missing & (unique_counts5 > 1) & authors_merged['orcid_url'].isna() & mask_not_ut
@@ -672,7 +672,7 @@ if recurate_orcid:
         unique_counts6 = grouped6.transform(lambda x: x.dropna().nunique())
         first_orcid6 = grouped6.transform(lambda x: x.dropna().iloc[0] if len(x.dropna()) > 0 else pd.NA)
 
-        mask_not_ut = authors_merged['parent_dataverse'] != 'University of Texas at Austin Dataverse Collection'
+        mask_not_ut = authors_merged['parent_dataverse'] != os.environ['INSTITUTION_COLLECTION']
 
         mask_single6 = mask_still_missing & (unique_counts6 == 1) & authors_merged['orcid_url'].isna() & mask_not_ut
         mask_multiple6 = mask_still_missing & (unique_counts6 > 1) & authors_merged['orcid_url'].isna() & mask_not_ut
@@ -694,7 +694,7 @@ if recurate_orcid:
         unique_counts7 = grouped7.transform(lambda x: x.dropna().nunique())
         first_orcid7 = grouped7.transform(lambda x: x.dropna().iloc[0] if len(x.dropna()) > 0 else pd.NA)
 
-        mask_not_ut = authors_merged['parent_dataverse'] != 'University of Texas at Austin Dataverse Collection'
+        mask_not_ut = authors_merged['parent_dataverse'] != os.environ['INSTITUTION_COLLECTION']
 
         mask_single7 = mask_still_missing & (unique_counts7 == 1) & authors_merged['orcid_url'].isna() & mask_not_ut
         mask_multiple7 = mask_still_missing & (unique_counts7 > 1) & authors_merged['orcid_url'].isna() & mask_not_ut

@@ -81,8 +81,8 @@ def retrieve_all_institutions(url, params_list, headers, page_start, per_page, p
 
     for institution_name, params in params_list.items():
         # Reset k for each institution if needed (but is k still used?)
-        all_data_tdr = retrieve_dataverse(url, params, headers, page_start, per_page, page_limit)
-        for entry in all_data_tdr:
+        all_data_dataverse = retrieve_dataverse(url, params, headers, page_start, per_page, page_limit)
+        for entry in all_data_dataverse:
             entry['institution'] = institution_name 
             all_data.append(entry)
 

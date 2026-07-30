@@ -1,12 +1,12 @@
 # README
 
 ## Metadata
-* *Version*: 1.6.0
-* *Released*: 2026/07/28
+* *Version*: 1.7.0
+* *Released*: 2026/07/30
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/07/28
+* *README last updated*: 2026/07/30
 
 ## Table of Contents
 1. [Purpose](#purpose)
@@ -29,9 +29,9 @@ This project uses [uv](https://docs.astral.sh/uv/) for package management. To ge
 4. Open the repo root folder in your IDE (e.g., **File → Open Folder** in VS Code) to ensure the environment is detected automatically (alternatively use the terminal to change directory).
 
 ### Requirements
-This workflow mostly makes use of modules in the Python standard library: *ast*, *csv*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script) and *rapidfuzz*. The `utils.py` file with custom functions is also necessary. 
+This workflow mostly makes use of modules in the Python standard library: *ast*, *csv*, *datetime*, *json*, *math*, *os*, *pandas*, *re*, *requests*, *sys*, and *time*. A few other well-known modules may need to be installed: *pywin32* (only if using the `dataset-email-generator.py` script), *scipy* (only if running the timeframe analysis), and *rapidfuzz*. The `utils.py` file with custom functions is also necessary. 
 
-For the addition of ROR identifiers and the clean-up/addition of ORCID identifiers, the [external vocab plug-in for ORCID and ROR](https://github.com/gdcc/dataverse-external-vocab-support/blob/main/examples/authorIDandAffilationUsingORCIDandROR.md) will need to be activated for the Dataverse installation.
+For the addition of ROR identifiers and the clean-up/addition of ORCID identifiers, the [external vocab plug-in for ORCID and ROR](https://github.com/gdcc/dataverse-external-vocab-support/blob/main/examples/authorIDandAffilationUsingORCIDandROR.md) should be activated for the Dataverse installation.
 
 `dataset-email-generator.py` is only designed for a Windows OS and Microsoft Outlook and requires you to have the desktop application installed and logged into; I am not aware of any requirements for a specific Outlook version, operating system, or institutional configuration of Outlook but have not tested this.
 
@@ -45,8 +45,9 @@ The env file contains credentials and other parameters that are likely to need t
 | `KEYS` | Contains the API token for the production installation and the API token for the sandbox installation.|
 | `USER` | Contains user information that will populate fields in email drafts; only necessary if you are running `dataset-email-generator.py`. *Title* appears before your name (e.g., 'Dr.'); *Credentials* appears after your name (e.g., Adam Smith, MLIS).|
 | `INSTITUTION`| Contains two fields, one for filename (can be whatever you want) and one for the operational institutional name (reference the ROR map in the `config.json` file for the controlled vocabulary). |
-| `TOGGLES`| Contains seven toggles that control different parts of the workflow. `test_remediate`: only for `dataset-metadata-remediation.py`, 'true' to create a small sample size for testing the actual re-curation process. `test_email`: only for `dataset-email-generator.py`, 'true' to use the small test sample size for testing email design/drafting. `draft_email`: only for `dataset-email-generator.py`, 'true' to create email drafts in an Outlook inbox (if false, it will just run the pre-processing steps). `json_retrieval`: only for `dataset-metadata-updater.py`, 'true' to retrieve the current metadata for datasets. `ror_plugin_enabled`: (ideally) a temporary toggle for the edge case scenario in which a dataverse previously had the ROR plug-in enabled, disabled it, and intends to re-enable it. 'true' if plug-in is active. `only_my_institution`: only for TDR institutions, 'true' to retrieve metadata for only one institution versus all institutions. `split_institution_output`: only for TDR institutions, 'true' to split outputs by institution when all institutions were queried.|
+| `TOGGLES`| Contains seven toggles that control different parts of the workflow. `test_remediate`: only for `dataset-metadata-remediation.py`, 'true' to create a small sample size for testing the actual re-curation process. `test_email`: only for `dataset-email-generator.py`, 'true' to use the small test sample size for testing email design/drafting. `draft_email`: only for `dataset-email-generator.py`, 'true' to create email drafts in an Outlook inbox (if false, it will just run the pre-processing steps). `json_retrieval`: only for `dataset-metadata-updater.py`, 'true' to retrieve the current metadata for datasets. `ror_plugin_enabled`: (ideally) a temporary toggle for the edge case scenario in which a dataverse previously had the ROR plug-in enabled, disabled it, and intends to re-enable it. 'true' if plug-in is active. `only_my_institution`: only for TDR institutions, 'true' to retrieve metadata for only one institution versus all institutions. `split_institution_output`: only for TDR institutions, 'true' to split outputs by institution when all institutions were queried. `timeframe_analysis`: 'true' to compare metadata quality between two time intervals (requires defining the two variables under `DATES` (see below)).|
 | `RECURATION`| Contains eight toggles that control whether to flag and remediate different metadata attributes; in order: ORCID presence/absence, ROR presence/absence, author name formatting, keyword formatting, title punctuation (extra spaces or terminal periods), funders, related works, and license. The first five are remediations (the workflow both flags missing/malformatted entries and fixes them), the sixth flags missing funding and uses ROR to standardize existing funders, and the last two are flag-only (the workflow flags something for manual review). 'true' for all to enable a flag/remediation. These should not be changed across a full run (e.g., do not change between running the first and second script).|
+| `DATES`| Date brackets if conducting a timeframe analysis to look at metadata over two different periods. Should be in YYYYMMDD format (no punctuation separation).|
 
 ### config file
 The config file contains semi-static to static parameters that are unlikely to need to be modified by another user, including API query parameters and a map of all TDR institutions to their ROR identifier. The one set of fields that would be institution-specific are "EXCLUDED" and "PEOPLE_CONDITIONAL" - this was designed specifically for UT Austin due to the nature of 'collections as data' deposits and likely is irrelevant for other institutions. Leaving it unmodified will not affect other institutions running the script. 
@@ -91,6 +92,7 @@ Most of the output files are intended for logging/archival purposes and are not 
 | `{today}_{institution-name}_all-authors-PUBLISHED.csv` | The author-level dataframe returned from the metadata retrieved from the Native API endpoint. |
 | `{today}_{institution-name}_all-authors-datasets-PUBLISHED.csv` | The expanded author-level dataframe with dataset-level metadata merged in.  |
 | `affiliation-map-primary.csv` or `affiliation-map_TEMP.csv` | If `affiliation-map-primary.csv` does not exist, it is created. It will need to have ROR identifiers matched where appropriate in a 'ror' column. If one does exist, any new entries are concatenated to the bottom, and the file is output as `affiliation-map_TEMP.csv` to avoid overwriting the existing file. This file should then be manually inspected for new ROR matching, and then it can be saved as *affiliation-map-primary.csv* (overwrite it manually).  |
+| `funder-map-primary.csv` or `funder-map_TEMP.csv` | If `funder-map-primary.csv` does not exist, it is created. It will need to have ROR identifiers matched where appropriate in a 'ror' column. If one does exist, any new entries are concatenated to the bottom, and the file is output as `funder-map_TEMP.csv` to avoid overwriting the existing file. This file should then be manually inspected for new ROR matching, and then it can be saved as *funder-map-primary.csv* (overwrite it manually).  |
 
 ### `ror-metadata-retrieval.py`
 | File | Content |
@@ -115,6 +117,14 @@ This script does not generate any output files.
 | `{today}_metadata-changes-log.csv` | Change log file with the DOI, the original author name (authorName field), what field was modified, what the original value in that field was, what the new value in that field was, what category the change was (e.g., 'added ROR'), and the timestamp. For dataset-level modifications, the original author name is replaced with 'DATASET_LEVEL'. Each change is returned as a separate row, so there may be multiple entries for one DOI and even for one author. |
 | `{today}_metadata-changes-log.json` | Change log file with the same information as the CSV version. Each DOI is used as the root, with all changes to any component nested within it (i.e. single entry per DOI). |
 
+### `workflow-summary.py` 
+| File | Content |
+|------|---------|
+| `{date}_author-level-recuration-summary.png` | Horizontal line graph comparing pre- and post-re-curation author-level metadata quality in select fields. |
+| `{date}_dataset-level-recuration-summary.png` | Horizontal line graph comparing pre- and post-re-curation author-level metadata quality in select fields. |
+| `{date}_author-level-timeframe-summary.png` | Bar plots comparing author-level metadata quality at initial publication (no curator intervention) between two time intervals and between all depositors and those who published at least one dataset in each time interval. |
+| `{date}_dataset-level-timeframe-summary.png` | Bar plots comparing dataset-level metadata quality at initial publication (no curator intervention) between two time intervals and between all depositors and those who published at least one dataset in each time interval. |
+
 ## Development
 This workflow is intended for additional development in order to catch additional forms of malformatted metadata that can be programmatically detected and remediated. 
 
@@ -126,14 +136,15 @@ This workflow is intended for additional development in order to catch additiona
 ### Another multi-institution installation
 In addition to the above steps for another TDR institution:
 1. Change `DATAVERSE_URL` in the `.env` file.
-2. Create the ROR and subtree maps in `config.json`. The key-value pairs for ROR need to be in this format - "Freeform name": "https://ror.org/{identifier}. The freeform name can be whatever, but generally shorter is better than full name because this name is called elsewhere (e.g., `MY_INSTITUTION` in `.env`). Each institution that could be sampled should be added here. For the subtree maps, the format needs to be - "Freeform name": "{collection alias}". The 'subtree' is really just the alias for the collection you want to target, so it could be at any level of collection that you want.
+2. Create the ROR and subtree maps in `config.json`. The key-value pairs for ROR need to be in this format - "Freeform name": "{ROR URL}". The freeform name can be whatever, but generally shorter is better than full name because this name is called elsewhere (e.g., `MY_INSTITUTION` in `.env`). Each institution that could be sampled should be added here. For the subtree maps, the format needs to be - "Freeform name": "{collection alias}". The 'subtree' is really just the alias for the collection you want to target, so it could be at any level of collection that you want.
 
 ### A single-institution installation
 In addition to the above steps for another TDR institution:
 1. Change `DATAVERSE_URL` in the `.env` file.
-2. Create the ROR map in `config.json`. The key-value pair for ROR needs to be in this format - "Freeform name": "https://ror.org/{identifier}. The freeform name can be whatever, but generally shorter is better than full name because this name is called elsewhere (e.g., `MY_INSTITUTION` in `.env`). The subtree map can be left blank unless you want to specify a certain collection.
+2. Create the ROR map in `config.json`. The key-value pair for ROR needs to be in this format - "Freeform name": "{ROR URL}". The freeform name can be whatever, but generally shorter is better than full name because this name is called elsewhere (e.g., `MY_INSTITUTION` in `.env`). The subtree map can be left blank unless you want to specify a certain collection.
 
 ## Version notes
+* **Version 1.7.0** mainly updates the README file and adds some additional summary functionality in `workflow-summary.py`. 
 * **Version 1.6.0** is a moderate update. It refactors the parameters used to search an installation for datasets and dataverses to make it more flexible for adoption in other Dataverse installations that might not care about filtering on specific subtrees. It also makes some minor bug fixes and refactoring for Boolean flagging. The code to move older outputs into a subdirectory has been relaxed a bit to use a 14-day cutoff instead of moving anything not created on that day; this would be important for doing comparisons of pre- and post-process. A new flag has been added where there is one related publication linked, but it's a preprint (possibly the VOR is out there). The workflow summary has been expanded to include some assessment of select fields between two time intervals, not just two static points, to see if re-curation inadvertently led to improved PID usage.
 * **Version 1.5.0** is a minor update. It makes some bug fixes to address inaccurate Boolean flag creation but mainly reworks some code to be more accurate in how the flags are created and generalizes the codebase (to an extent) to avoid mention of TDR or UT Austin.
 * **Version 1.4.0** is a significant update. It mainly address tech debt, including adding *uv* for package management, overhauling the config/env file to separate parameters/credentials, and adding several safeguards to ensure functionality when using a test environment. Functionality to identify, match, and add ROR identifiers for funding agencies has also been added. This README has also been restructured
