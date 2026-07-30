@@ -10,6 +10,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "rapidfuzz>=3.14.3",
     "requests>=2.32.3",
+    "scipy>=1.14.0",
     "pywin32>=311; sys_platform == 'win32'",
 ]
 

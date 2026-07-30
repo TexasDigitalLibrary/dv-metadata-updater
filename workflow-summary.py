@@ -7,6 +7,8 @@ import pandas as pd
 import re
 import shutil
 from datetime import datetime
+from itertools import combinations
+from scipy.stats import chi2_contingency
 from utils import env_bool, is_recent_file, load_most_recent_file, load_nth_most_recent_file, load_file_by_date
 
 # ============================================
@@ -311,6 +313,100 @@ print('=' * 80)
 print()
 
 # ============================================
+#   AUTHOR POSITION SUMMARY (pre-recuration only)
+# ============================================
+
+df_position = results_authors['pre']['dataframe']
+
+# Mutually exclusive groups: sole author of a single-author dataset, first author of a multi-author
+# dataset, and everyone else (author_count == 1 implies author_position == 1, so it's split out first)
+sole_authors  = df_position[df_position['author_count'] == 1]
+first_authors = df_position[(df_position['author_position'] == 1) & (df_position['author_count'] > 1)]
+other_authors = df_position[df_position['author_position'] != 1]
+
+position_groups = {
+    'Sole author': sole_authors,
+    'First author': first_authors,
+    'Other positions': other_authors
+}
+
+print('=' * 80)
+print(f'{"Metric":<40} {"Sole author":<20} {"First author":<20} {"Other positions":<20}')
+print('=' * 80)
+
+row_labels = {'Author count': None, 'Missing ORCID': 'missing_orcid', 'Missing ROR': 'missing_ror'}
+for label, col in row_labels.items():
+    if col is None:
+        values = [f'{len(df):<20}' for df in position_groups.values()]
+    else:
+        values = [f'{(df[col].sum() / len(df)):<20.1%}' for df in position_groups.values()]
+    print(f'{label:<40} ' + ' '.join(values))
+
+print('=' * 80)
+print()
+
+# Chi-square test of independence: does group membership relate to missing ORCID/ROR?
+print('Chi-square test of independence (group vs. missing status):')
+for label, col in (('Missing ORCID', 'missing_orcid'), ('Missing ROR', 'missing_ror')):
+    contingency = [[df[col].sum(), len(df) - df[col].sum()] for df in position_groups.values()]
+    chi2, p_value, dof, _ = chi2_contingency(contingency)
+    significance = 'significant' if p_value < 0.05 else 'not significant'
+    print(f'{label}: chi2 = {chi2:.2f}, p = {p_value:.4f} (df={dof}) -- {significance} at alpha=0.05')
+print()
+
+# Pairwise post-hoc comparisons to see which specific groups drive the omnibus result
+# (Bonferroni-corrected since each metric runs 3 pairwise tests)
+group_pairs = list(combinations(position_groups.keys(), 2))
+bonferroni_alpha = 0.05 / len(group_pairs)
+
+print(f'Pairwise post-hoc comparisons (Bonferroni-corrected alpha = {bonferroni_alpha:.4f}):')
+for label, col in (('Missing ORCID', 'missing_orcid'), ('Missing ROR', 'missing_ror')):
+    print(f'{label}:')
+    for group_a, group_b in group_pairs:
+        df_a = position_groups[group_a]
+        df_b = position_groups[group_b]
+        pair_contingency = [
+            [df_a[col].sum(), len(df_a) - df_a[col].sum()],
+            [df_b[col].sum(), len(df_b) - df_b[col].sum()]
+        ]
+        chi2, p_value, dof, _ = chi2_contingency(pair_contingency)
+        significance = 'significant' if p_value < bonferroni_alpha else 'not significant'
+        print(f'  {group_a} vs. {group_b}: chi2 = {chi2:.2f}, p = {p_value:.4f} -- {significance} at corrected alpha')
+print()
+
+# ============================================
+#   FIRST VS. NON-FIRST AUTHOR SUMMARY (ignores author_count)
+# ============================================
+
+first_vs_other_groups = {
+    'First author': df_position[df_position['author_position'] == 1],
+    'Non-first author': df_position[df_position['author_position'] != 1]
+}
+
+print('=' * 80)
+print(f'{"Metric":<40} {"First author":<20} {"Non-first author":<20}')
+print('=' * 80)
+
+for label, col in row_labels.items():
+    if col is None:
+        values = [f'{len(df):<20}' for df in first_vs_other_groups.values()]
+    else:
+        values = [f'{(df[col].sum() / len(df)):<20.1%}' for df in first_vs_other_groups.values()]
+    print(f'{label:<40} ' + ' '.join(values))
+
+print('=' * 80)
+print()
+
+# Chi-square test of independence: first vs. non-first author, regardless of author_count
+print('Chi-square test of independence (first vs. non-first author vs. missing status):')
+for label, col in (('Missing ORCID', 'missing_orcid'), ('Missing ROR', 'missing_ror')):
+    contingency = [[df[col].sum(), len(df) - df[col].sum()] for df in first_vs_other_groups.values()]
+    chi2, p_value, dof, _ = chi2_contingency(contingency)
+    significance = 'significant' if p_value < 0.05 else 'not significant'
+    print(f'{label}: chi2 = {chi2:.2f}, p = {p_value:.4f} (df={dof}) -- {significance} at alpha=0.05')
+print()
+
+# ============================================
 #               GRAPHS
 # ============================================
 
@@ -337,7 +433,7 @@ post_proportions = [
     results_datasets['post']['title_proportion']
 ]
 
-plot_filename = f"{today}_dataset-level-summary.png"
+plot_filename = f"{today}_dataset-level-recuration-summary.png"
 fig, ax = plt.subplots(figsize=(8, 6))
 
 y_positions = np.arange(len(metric_names))
@@ -403,7 +499,7 @@ post_proportions = [
     results_authors['post']['author_order_proportion']
 ]
 
-plot_filename = f"{today}_author-level-summary.png"
+plot_filename = f"{today}_author-level-recuration-summary.png"
 fig, ax = plt.subplots(figsize=(8,6))
 
 y_positions = np.arange(len(metric_names))
@@ -452,88 +548,6 @@ plot_path = os.path.join(plots_dir, plot_filename)
 plt.savefig(plot_path, dpi=1200)
 print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
 # plt.show()
-
-# ============================================
-#           ANONYMIZED EXPORT
-# ============================================
-
-# anonymized_dir = os.path.join(outputs_dir, 'anonymized')
-# os.makedirs(anonymized_dir, exist_ok=True)
-
-# # Dataset-level columns
-# dataset_redact_review = [
-#     'institution', 'doi', 'version_id', 'total_version', 'current_status', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 
-#     'dataset_depositor', 'dataset_contact',
-#     'authors_flag_name', 'authors_flag_orcid', 'authors_flag_ror',
-# ]
-# dataset_redact_review_blanks_ok = [
-#     'related_works_citations', 'related_works_urls', 'related_works_dois',
-# ]
-# dataset_redact_privacy = ['dataset_id', 'dataset_email']
-
-# # Author-level columns
-# # author_affiliation and author_identifier_expanded handled separately (prefix-preserving)
-# author_redact_review = [
-#     'author_name', 'doi', 'ror_id', 'institution', 'version_id', 'total_version', 'current_status_y', 'dataverse', 'parent_dataverse', 'dataset_title', 'description', 'dataset_depositor', 'dataset_contact'
-# ]
-# author_redact_review_blanks_ok = [
-#     'author_identifier',  # must preserve blanks: used in .notna() count for plots
-#     'related_works_citations', 'related_works_urls', 'related_works_dois',
-# ]
-# author_redact_privacy = ['dataset_id', 'dataset_email']
-
-# def redact_df(df, redact_review, redact_review_blanks_ok, redact_privacy):
-#     out = df.copy()
-#     for col in redact_review:
-#         if col in out.columns:
-#             out[col] = '[redacted for review]'
-#     for col in redact_review_blanks_ok:
-#         if col in out.columns:
-#             out[col] = out[col].where(out[col].isna(), '[redacted for review]')
-#     for col in redact_privacy:
-#         if col in out.columns:
-#             out[col] = '[redacted for privacy]'
-#     return out
-
-# def redact_author_df(df):
-#     out = redact_df(df, author_redact_review, author_redact_review_blanks_ok, author_redact_privacy)
-#     # author_affiliation: preserve ROR prefix so str.contains('https://ror.org/') still works
-#     if 'author_affiliation' in out.columns:
-#         out['author_affiliation'] = df['author_affiliation'].apply(
-#             lambda v: 'https://ror.org/[redacted for review]' if pd.notna(v) and 'https://ror.org/' in str(v)
-#             else ('[redacted for review]' if pd.notna(v) else v)
-#         )
-#     # author_identifier_expanded: blank → blank, ORCID → preserve prefix, other → redact
-#     if 'author_identifier_expanded' in out.columns:
-#         out['author_identifier_expanded'] = df['author_identifier_expanded'].apply(
-#             lambda v: 'https://orcid.org/00[redacted for review]' if pd.notna(v) and 'https://orcid.org/00' in str(v)
-#             else ('[redacted for review]' if pd.notna(v) else v)
-#         )
-#     return out
-
-# dataset_drop_cols = ['current_status', 'version_id', 'dataset_id']
-# author_drop_cols  = ['current_status_x', 'current_status_y', 'dataset_id', 'version_id']
-
-# def drop_cols(df, cols):
-#     return df.drop(columns=[c for c in cols if c in df.columns])
-
-# anonymized_exports = {
-#     f'{today}_UT-austin_all-datasets-authors-PUBLISHED_pre_anonymized.csv':
-#         drop_cols(redact_df(results_datasets['pre']['dataframe'],  dataset_redact_review, dataset_redact_review_blanks_ok, dataset_redact_privacy), dataset_drop_cols),
-#     f'{today}_UT-austin_all-datasets-authors-PUBLISHED_post_anonymized.csv':
-#         drop_cols(redact_df(results_datasets['post']['dataframe'], dataset_redact_review, dataset_redact_review_blanks_ok, dataset_redact_privacy), dataset_drop_cols),
-#     f'{today}_UT-austin_all-authors-datasets-PUBLISHED_pre_anonymized.csv':
-#         drop_cols(redact_author_df(results_authors['pre']['dataframe']),  author_drop_cols),
-#     f'{today}_UT-austin_all-authors-datasets-PUBLISHED_post_anonymized.csv':
-#         drop_cols(redact_author_df(results_authors['post']['dataframe']), author_drop_cols),
-# }
-
-# for filename, anon_df in anonymized_exports.items():
-#     export_path = os.path.join(anonymized_dir, filename)
-#     anon_df.to_csv(export_path, index=False, encoding='utf-8')
-#     print(f'✓ Anonymized export saved: {export_path}')
-
-# print(f'\nAll anonymized files saved to: {anonymized_dir}\n')
 
 # ============================================
 #        ORCID/ROR TIMEFRAME ANALYSIS
@@ -598,6 +612,36 @@ if time_analysis:
         print(f'Authors with ROR:         {ror_present_count} ({ror_present_count / author_count:.1%})')
 
     # ============================================
+    #   TIMEFRAME ANALYSIS - DATASET-LEVEL COVERAGE
+    # ============================================
+
+    # Author-level proportions can be skewed by a few many-author datasets. This instead asks,
+    # per dataset: does at least one author have an ORCID / ROR present?
+    results_timeframe_dataset_coverage = {}
+
+    for label, df_window in timeframe_dict.items():
+        # True per dataset if every author is missing the identifier -- invert for "at least one present"
+        dataset_has_orcid = ~df_window.groupby('doi')['missing_orcid'].all()
+        dataset_has_ror   = ~df_window.groupby('doi')['missing_ror'].all()
+
+        dataset_count = len(dataset_has_orcid)
+        orcid_any_count = dataset_has_orcid.sum()
+        ror_any_count = dataset_has_ror.sum()
+
+        results_timeframe_dataset_coverage[label] = {
+            'dataset_count': dataset_count,
+            'orcid_any_count': orcid_any_count,
+            'orcid_any_proportion': orcid_any_count / dataset_count,
+            'ror_any_count': ror_any_count,
+            'ror_any_proportion': ror_any_count / dataset_count
+        }
+
+        print(f'\n--- Dataset-Level Coverage ({label}) ---')
+        print(f'Total datasets:                      {dataset_count}')
+        print(f'Datasets with >=1 author w/ ORCID:    {orcid_any_count} ({orcid_any_count / dataset_count:.1%})')
+        print(f'Datasets with >=1 author w/ ROR:      {ror_any_count} ({ror_any_count / dataset_count:.1%})')
+
+    # ============================================
     #   TIMEFRAME ANALYSIS - REPEAT DEPOSITORS
     # ============================================
 
@@ -649,6 +693,33 @@ if time_analysis:
         print(f'Authors with ROR:         {ror_present_count} ({ror_present_count / author_count:.1%})')
 
     # ============================================
+    #   TIMEFRAME ANALYSIS - DATASET-LEVEL COVERAGE, REPEAT DEPOSITORS
+    # ============================================
+
+    results_timeframe_dataset_coverage_repeat = {}
+
+    for label, df_window in timeframe_dict_repeat.items():
+        dataset_has_orcid = ~df_window.groupby('doi')['missing_orcid'].all()
+        dataset_has_ror   = ~df_window.groupby('doi')['missing_ror'].all()
+
+        dataset_count = len(dataset_has_orcid)
+        orcid_any_count = dataset_has_orcid.sum()
+        ror_any_count = dataset_has_ror.sum()
+
+        results_timeframe_dataset_coverage_repeat[label] = {
+            'dataset_count': dataset_count,
+            'orcid_any_count': orcid_any_count,
+            'orcid_any_proportion': orcid_any_count / dataset_count,
+            'ror_any_count': ror_any_count,
+            'ror_any_proportion': ror_any_count / dataset_count
+        }
+
+        print(f'\n--- Dataset-Level Coverage, repeat depositors ({label}) ---')
+        print(f'Total datasets:                      {dataset_count}')
+        print(f'Datasets with >=1 author w/ ORCID:    {orcid_any_count} ({orcid_any_count / dataset_count:.1%})')
+        print(f'Datasets with >=1 author w/ ROR:      {ror_any_count} ({ror_any_count / dataset_count:.1%})')
+
+    # ============================================
     #        TIMEFRAME ANALYSIS - GRAPH
     # ============================================
 
@@ -671,7 +742,7 @@ if time_analysis:
         ('Repeat depositors', results_timeframe_repeat)
     ]
 
-    plot_filename = f"{today}_timeframe-summary.png"
+    plot_filename = f"{today}_author-level-timeframe-summary.png"
     fig, axes = plt.subplots(1, 2, figsize=(8, 6), sharey=True)
 
     x = np.arange(len(metric_names))
@@ -700,7 +771,65 @@ if time_analysis:
         ax.grid(True, axis='y', color='white', linestyle='-', linewidth=1.5)
 
     axes[0].set_ylabel('Proportion of authors', fontsize=11, fontweight='bold')
-    fig.suptitle('Author identifier completeness by depositor group', fontsize=13, fontweight='bold')
+    fig.suptitle('ORCID & ROR usage (author-level)', fontsize=13, fontweight='bold')
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.03), fontsize=10,
+               framealpha=0.9, ncol=2, frameon=True)
+    fig.subplots_adjust(top=0.85, bottom=0.15, wspace=0.15)
+    plot_path = os.path.join(plots_dir, plot_filename)
+    plt.savefig(plot_path, dpi=1200, bbox_inches='tight')
+    print(f'\n{plot_filename} has been saved successfully at {plot_path}.\n')
+
+    # ============================================
+    #   TIMEFRAME ANALYSIS - DATASET COVERAGE GRAPH
+    # ============================================
+
+    def _timeframe_coverage_proportions(results):
+        pre_props = [
+            results['pre']['orcid_any_proportion'],
+            results['pre']['ror_any_proportion']
+        ]
+        post_props = [
+            results['post']['orcid_any_proportion'],
+            results['post']['ror_any_proportion']
+        ]
+        return pre_props, post_props
+
+    coverage_facets = [
+        ('All depositors', results_timeframe_dataset_coverage),
+        ('Repeat depositors', results_timeframe_dataset_coverage_repeat)
+    ]
+
+    plot_filename = f"{today}_dataset-level-timeframe-summary.png"
+    fig, axes = plt.subplots(1, 2, figsize=(8, 6), sharey=True)
+
+    x = np.arange(len(metric_names))
+    bar_width = 0.35
+
+    for ax, (facet_title, results) in zip(axes, coverage_facets):
+        pre_props, post_props = _timeframe_coverage_proportions(results)
+
+        bars_pre = ax.bar(x - bar_width / 2, pre_props, bar_width, color="#FFC20A",
+                           label='Before', edgecolor='black', linewidth=1.5, zorder=3)
+        bars_post = ax.bar(x + bar_width / 2, post_props, bar_width, color='#0C7BDC',
+                            label='After', edgecolor='black', linewidth=1.5, zorder=3)
+
+        for bars in (bars_pre, bars_post):
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width() / 2, height + 0.02, f'{height:.1%}',
+                        ha='center', fontsize=9, fontweight='bold')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(metric_names, fontsize=10)
+        ax.set_title(facet_title, fontsize=12, fontweight='bold')
+        ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
+        ax.set_ylim(0, 1.15)
+        ax.set_facecolor('#f7f7f7')
+        ax.grid(True, axis='y', color='white', linestyle='-', linewidth=1.5)
+
+    axes[0].set_ylabel('Proportion of datasets', fontsize=11, fontweight='bold')
+    fig.suptitle('ORCID & ROR usage (dataset-level)', fontsize=13, fontweight='bold')
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.03), fontsize=10,
                framealpha=0.9, ncol=2, frameon=True)
