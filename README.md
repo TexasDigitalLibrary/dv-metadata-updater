@@ -2,11 +2,13 @@
 
 ## Metadata
 * *Version*: 1.7.0
-* *Released*: 2026/07/30
+* *Released*: 2026/08/03
 * *Author(s)*: Bryan Gee (UT Libraries, University of Texas at Austin; bryan.gee@austin.utexas.edu; ORCID: [0000-0003-4517-3290](https://orcid.org/0000-0003-4517-3290))
 * *Contributor(s)*: None
 * *License*: [3-Clause BSD](https://opensource.org/license/bsd-3-clause)
-* *README last updated*: 2026/07/30
+* *README last updated*: 2026/08/03
+
+⚠️ *Notice of development hiatus: As of August 2026, this codebase is not under active development. When development resumes, this notice will be removed.*
 
 ## Table of Contents
 1. [Purpose](#purpose)
