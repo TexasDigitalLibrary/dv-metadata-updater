@@ -852,9 +852,12 @@ else:
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned.dropna(subset=['affiliation'])
     mask = ~df_all_affiliations_dedup_expanded_pruned['affiliation'].str.contains('https://ror.org/', case=False, na=False) # Case-insensitive and handles potential NaN values
     df_all_affiliations_dedup_expanded_pruned = df_all_affiliations_dedup_expanded_pruned[mask]
-    df_all_affiliations_dedup_expanded_pruned.to_csv(f'{script_dir}/affiliation-map_TEMP.csv', index=False, encoding='utf-8-sig')
-if affiliation_ror_map is not None:
-    print(f'Number of new affiliations to check: {len(df_all_affiliations_dedup_expanded_pruned) - len(affiliation_ror_map)}.\n')
+    new_affiliations_count = len(df_all_affiliations_dedup_expanded_pruned) - len(affiliation_ror_map)
+    print(f'Number of new affiliations to check: {new_affiliations_count}.\n')
+    if new_affiliations_count > 0:
+        df_all_affiliations_dedup_expanded_pruned.to_csv(f'{script_dir}/affiliation-map_TEMP.csv', index=False, encoding='utf-8-sig')
+    else:
+        print('No new affiliations to check - skipping affiliation-map_TEMP.csv write.\n')
 
 # ============================================
 #           ROR-FUNDER MAP
@@ -878,9 +881,12 @@ else:
     ## Ignore those with ROR
     mask = ~df_funders_expanded_pruned['grant_agencies'].str.contains('https://ror.org/', case=False, na=False) # Case-insensitive and handles potential NaN values
     df_funders_expanded_pruned = df_funders_expanded_pruned[mask]
-    df_funders_expanded_pruned.to_csv(f'{script_dir}/funder-map_TEMP.csv', index=False, encoding='utf-8-sig')
-if funder_ror_map is not None:
-    print(f'Number of new funders to check: {len(df_funders_expanded_pruned) - len(funder_ror_map)}.\n')
+    new_funders_count = len(df_funders_expanded_pruned) - len(funder_ror_map)
+    print(f'Number of new funders to check: {new_funders_count}.\n')
+    if new_funders_count > 0:
+        df_funders_expanded_pruned.to_csv(f'{script_dir}/funder-map_TEMP.csv', index=False, encoding='utf-8-sig')
+    else:
+        print('No new funders to check - skipping funder-map_TEMP.csv write.\n')
 
 print(f'Done\n---Time to run: {datetime.now() - start_time}---\n')
 if len(final_timeouts) > 0:
