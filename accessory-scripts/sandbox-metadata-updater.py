@@ -5,9 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-script_dir = os.getcwd()
+script_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(script_dir)
 # This script assumes you are using test data
-json_dir = os.path.join('test/json/modified')
+json_dir = os.path.join(repo_root, 'test/json/modified')
 
 # Extract ONLY the metadataBlocks from the datasetVersion
 SERVER_URL = 'https://dataverse-training.tdl.org'

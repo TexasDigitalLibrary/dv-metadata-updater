@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import requests
 import sys
@@ -6,7 +7,9 @@ import sys
 #               WORKFLOW SET-UP
 # ============================================
 
-df = pd.read_csv('affiliation-map-primary.csv')
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+df = pd.read_csv(os.path.join(REPO_ROOT, 'affiliation-map-primary.csv'))
 df_clean = df.drop_duplicates(subset=['ror']).dropna(subset=['ror'])
 # Identify only unmatched ROR affiliations
 df_clean_unmatched = df_clean[(df_clean['ror'].notna() & df_clean['official_name'].isna())]
@@ -57,4 +60,4 @@ merged = pd.merge(df, df_data_ror_select, on='ror', how='left')
 combined = df.merge(df_data_ror_select[['ror', 'official_name']], on='ror',how='left',suffixes=('_old', '_new'))
 combined['official_name'] = combined['official_name_new'].fillna(combined['official_name_old'])
 combined = combined.drop(['official_name_old', 'official_name_new'], axis=1)
-combined.to_csv('affiliation-map_TEMP.csv', index=False, encoding='utf-8-sig')
+combined.to_csv(os.path.join(REPO_ROOT, 'affiliation-map_TEMP.csv'), index=False, encoding='utf-8-sig')
